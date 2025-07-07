@@ -17,6 +17,7 @@ from openpyxl.worksheet.worksheet import Worksheet
 warnings.simplefilter(action="ignore", category=UserWarning)
 rich_traceback.install()
 
+
 class AppendOnly(BaseModel):
     """
     记录表中共有的两列，一列代表记录的名称，一列代表记录添加、更新或删除的时间。
@@ -432,23 +433,13 @@ def change(x: str, y: str) -> str:
 def boardprint(number: float) -> None:
     print(f"\r{pointfmt(number)}", end="")
 
+
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
-    return aiohttp.web.FileResponse('web/index.html')
+    return aiohttp.web.FileResponse("web/index.html")
 
-async def firamono_ttf(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
-    return aiohttp.web.FileResponse('web/FiraMono.ttf')
-
-async def style_css(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
-    return aiohttp.web.FileResponse('web/style.css')
-
-async def script_js(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
-    return aiohttp.web.FileResponse('web/script.js')
 
 async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
     data = load_data()
-    tmark = datetime.now().strftime("%Y%m%d-%H%M%S")
-    with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
-        f.write(data.model_dump_json(indent=2))
     now_time = datetime.now()
     now_state = collect_state(data, now_time)
     now_statistic = statistic(now_state, now_time)
@@ -457,12 +448,11 @@ async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
 
 def live_server() -> None:
     app = aiohttp.web.Application()
-    app.add_routes([aiohttp.web.get('/', index_html)])
-    app.add_routes([aiohttp.web.get('/style.css', style_css)])
-    app.add_routes([aiohttp.web.get('/script.js', script_js)])
-    app.add_routes([aiohttp.web.get('/FiraMono.ttf', firamono_ttf)])
-    app.add_routes([aiohttp.web.post('/get_points', get_points)])
+    app.add_routes([aiohttp.web.post("/get_points", get_points)])
+    app.add_routes([aiohttp.web.get("/", index_html)])
+    app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host="0.0.0.0", port=26019)
+
 
 def main() -> None:
 
@@ -473,8 +463,6 @@ def main() -> None:
 
     data = load_data()
     tmark = datetime.now().strftime("%Y%m%d-%H%M%S")
-    with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
-        f.write(data.model_dump_json(indent=2))
 
     if len(sys.argv) > 2:
         prev_time = datetime.fromisoformat(sys.argv[1])
@@ -491,6 +479,9 @@ def main() -> None:
 
     now_statistic = statistic(now_state, now_time)
     prev_statistic = statistic(prev_state, prev_time)
+
+    with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
+        f.write(data.model_dump_json(indent=2))
 
     mark: str
     with open(f"data/{tmark}.txt", "w", encoding="utf-8") as f:
