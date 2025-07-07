@@ -1,0 +1,27 @@
+body {
+  background-color: #000000;
+  margin: 0;
+  padding: 0;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+@font-face {
+    font-family: "Fira Mono";
+    src: url("/FiraMono.ttf");
+}
+
+#points {
+  font-family: "Fira Mono", "Gill Sans", "Gill Sans MT", Calibri,
+    "Trebuchet MS", sans-serif;
+  font-size: min(80vh, 30vw);
+  color: #505050;
+  user-select: none;
+}

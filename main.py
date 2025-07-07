@@ -4,7 +4,9 @@ from datetime import datetime, timedelta, time as datetime_time
 from textwrap import indent, wrap
 import math
 import sys
-import argparse
+import os
+import warnings
+import aiohttp.web
 
 from rich import inspect, traceback as rich_traceback
 from rich.pretty import pprint
@@ -12,8 +14,8 @@ from pydantic import BaseModel, ConfigDict
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
+warnings.simplefilter(action="ignore", category=UserWarning)
 rich_traceback.install()
-
 
 class AppendOnly(BaseModel):
     """
@@ -427,7 +429,48 @@ def change(x: str, y: str) -> str:
         return f"{x} -> {y}"
 
 
+def boardprint(number: float) -> None:
+    print(f"\r{pointfmt(number)}", end="")
+
+async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
+    return aiohttp.web.FileResponse('web/index.html')
+
+async def firamono_ttf(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
+    return aiohttp.web.FileResponse('web/FiraMono.ttf')
+
+async def style_css(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
+    return aiohttp.web.FileResponse('web/style.css')
+
+async def script_js(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
+    return aiohttp.web.FileResponse('web/script.js')
+
+async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
+    data = load_data()
+    tmark = datetime.now().strftime("%Y%m%d-%H%M%S")
+    with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
+        f.write(data.model_dump_json(indent=2))
+    now_time = datetime.now()
+    now_state = collect_state(data, now_time)
+    now_statistic = statistic(now_state, now_time)
+    return aiohttp.web.Response(text=pointfmt(now_statistic.Goldie点数))
+
+
+def live_server() -> None:
+    app = aiohttp.web.Application()
+    app.add_routes([aiohttp.web.get('/', index_html)])
+    app.add_routes([aiohttp.web.get('/style.css', style_css)])
+    app.add_routes([aiohttp.web.get('/script.js', script_js)])
+    app.add_routes([aiohttp.web.get('/FiraMono.ttf', firamono_ttf)])
+    app.add_routes([aiohttp.web.post('/get_points', get_points)])
+    aiohttp.web.run_app(app, host="0.0.0.0", port=26019)
+
 def main() -> None:
+
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "live":
+            live_server()
+            return
+
     data = load_data()
     tmark = datetime.now().strftime("%Y%m%d-%H%M%S")
     with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
@@ -640,6 +683,8 @@ def main() -> None:
         write("-- 说明 --")
         with open("blueberry说明.txt", "r", encoding="utf-8") as g:
             write(g.read())
+
+    os.startfile(f"data\\{tmark}.txt")
 
 
 if __name__ == "__main__":
