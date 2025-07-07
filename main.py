@@ -8,14 +8,11 @@ import os
 import warnings
 import aiohttp.web
 
-from rich import inspect, traceback as rich_traceback
-from rich.pretty import pprint
 from pydantic import BaseModel, ConfigDict
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 warnings.simplefilter(action="ignore", category=UserWarning)
-rich_traceback.install()
 
 
 class AppendOnly(BaseModel):
