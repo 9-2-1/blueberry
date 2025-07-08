@@ -40,7 +40,7 @@ function updateTime() {
   let day = now.getDate();
   let month = now.getMonth() + 1;
   let weekday = now.getDay();
-  let week = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let week = ["日", "一", "二", "三", "四", "五", "六"];
   document.getElementById("nowdate").innerText =
     `${month.toString().padStart(2, "0")}/${day.toString().padStart(2, "0")} ${week[weekday]}`;
 }
