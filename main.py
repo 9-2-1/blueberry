@@ -395,13 +395,13 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
 
 def deltafmt_unsigned(delta: timedelta) -> str:
     if delta > timedelta(days=7):
-        return f"{delta // timedelta(days=1)}d"
+        return f"{delta // timedelta(days=1)}天"
     elif delta > timedelta(days=1):
-        return f"{delta // timedelta(days=1)}d{delta // timedelta(hours=1) % 24}h"
+        return f"{delta // timedelta(days=1)}天{delta // timedelta(hours=1) % 24}时"
     elif delta > timedelta(hours=1):
-        return f"{delta // timedelta(hours=1)}h{delta // timedelta(minutes=1) % 60}m"
+        return f"{delta // timedelta(hours=1)}时{delta // timedelta(minutes=1) % 60}分"
     else:
-        return f"{delta.seconds // 60}min"
+        return f"{delta.seconds // 60}分钟"
 
 
 def deltafmt_signed(
@@ -555,7 +555,7 @@ def main() -> None:
     write(
         f"时间: {change_fmt(prev_time, now_time, timefmt)}"
         + (
-            f" ({deltafmt_signed(now_time - prev_time, True, '0')})"
+            f" ({deltafmt_signed(now_time - prev_time)})"
             if now_time != prev_time
             else ""
         )
@@ -569,6 +569,9 @@ def main() -> None:
     write("")
 
     write("-- 今日进度 --")
+    今日用时 = timedelta(0)
+    # 8小时(时长) * 80%(工作-休息比) ≈ 6.5小时
+    推荐用时 = timedelta(hours=6.5)
     table_line: list[list[str]] = []
     for task in now_state.任务.values():
         nstat = nstats.任务统计.get(task.名称, None)
@@ -588,9 +591,9 @@ def main() -> None:
         y进度 = ystat.进度 if ystat is not None else 0
         finish_str = change_fmt(y进度, nstat.进度, numfmt)
         if nstat.进度 != y进度:
-            finish_str += numfmt_signed(nstat.进度 - y进度)
+            finish_str += f" ({numfmt_signed(nstat.进度 - y进度)})"
         y用时 = ystat.用时 if ystat is not None else timedelta(0)
-        timeused_str = deltafmt_signed(nstat.用时 - y用时, True, "")
+        timeused_str = deltafmt_signed(nstat.用时 - y用时)
         descp_str = nstat.进度描述 if nstat.进度描述 is not None else ""
         total_str = f"{task.总数:g}" if task.总数 is not None else ""
         table_line.append(
@@ -604,16 +607,17 @@ def main() -> None:
                 descp_str,
             ]
         )
+        今日用时 += nstat.用时 - y用时
     table = tabulate(
         table_line,
         headers=["任务", "完成", "总数", "用时", "剩余", "点数", "描述"],
     )
+    write(f"今日用时: {deltafmt_signed(今日用时)} (推荐用时的 {今日用时 / 推荐用时 :.0%})")
+    write("")
     write(table)
     write("")
 
     write("-- 主要任务 --")
-    # 8小时(时长) * 80%(工作-休息比) ≈ 6.5小时
-    推荐用时 = timedelta(hours=6.5)
     write(
         f"平均每日: {change_fmt(pstats.总每日用时, nstats.总每日用时, deltafmt_signed)} (推荐用时的 {nstats.总每日用时 / 推荐用时 :.0%})"
     )
