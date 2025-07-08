@@ -61,7 +61,6 @@ class ProgressModel(BaseModel):
     # ---
     进度: float = 0.0
     用时: timedelta = timedelta(0)
-    分数: float | None = None
     描述: str | None = None
 
 
@@ -622,6 +621,7 @@ def main() -> None:
 
     if args.short:
         write("-- Blueberry 简短 --")
+        write("简短报告中只有更新的任务才会提供详情。")
     else:
         write("-- Blueberry --")
     write(
@@ -807,7 +807,7 @@ def main() -> None:
                             ),
                         ]
                     )
-                else:
+                if not args.short or todo != prev_state.待办事项.get(todo.名称, None):
                     write(
                         f"{mark} (预计{pointfmt(todo.点数)}) {todo.标题}"
                         + (
@@ -887,7 +887,7 @@ def main() -> None:
         if (
             hints_n >= MAX_HINTS
             and hint.时间 < now_time - MAX_HINTS_TIME
-            or hint.时间 < prev_time
+            and hint.时间 < prev_time
         ):
             break
         if args.short:
@@ -899,7 +899,6 @@ def main() -> None:
         if hint.描述 is not None:
             write(indent(hint.描述, "    "))
         write("")
-    write("")
 
     write("-- 状态 --")
     # 简要模式表格

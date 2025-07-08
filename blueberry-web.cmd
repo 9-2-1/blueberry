@@ -1,1 +1,1 @@
-call conda run --no-capture-output -n blueberry python blueberry.py --live
+@call conda run --no-capture-output -n blueberry python blueberry.py --live || pause
