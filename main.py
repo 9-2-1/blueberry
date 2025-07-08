@@ -1,4 +1,4 @@
-from typing import Literal, Any, TypeVar, Generic
+from typing import Literal, Any, TypeVar, Generic, Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, time as datetime_time
 from textwrap import indent, wrap
@@ -227,7 +227,9 @@ class TaskEstimate:
 @dataclass
 class TaskStats:
     进度: float
+    用时: timedelta
     标记: Literal["*", "-", "=", "!"]
+    进度描述: str | None = None
     # * 进行中 - 等待开始 = 已完成 ! 已超时
     速度: TaskSpeed | None = None  # 开始的任务才能计算速度
     预计: TaskEstimate | None = None  # 开始但未完成的任务才能估计完成时间
@@ -285,7 +287,6 @@ def calculate_speed(
 def statistic(now_state: State, now_time: datetime) -> StateStats:
     # Goldie点数 = 任务 + 状态 + 其他任务完成
     # 任务
-
     任务点数 = 0.0
     任务统计: dict[str, TaskStats] = {}
     总每日用时 = timedelta(0)
@@ -299,10 +300,15 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             标记 = "*"
         progress = now_state.进度.get(task.名称, None)
         进度 = 0.0
+        进度描述 = None
+        用时 = timedelta(0)
         速度 = None
         if progress is not None:
             current = progress[-1]
             进度 = current.进度
+            进度描述 = current.描述
+            for node in progress:
+                用时 += node.用时
             速度 = calculate_speed(progress, task.开始, now_time)
             if task.总数 is not None:
                 if 进度 >= task.总数:
@@ -318,6 +324,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             )
         任务统计[task.名称] = TaskStats(
             进度=进度,
+            进度描述=进度描述,
+            用时=用时,
             标记=标记,
             速度=速度,
             预计=预计,
@@ -414,10 +422,22 @@ def timefmt(t: datetime, now: datetime | None = None) -> str:
 
 def pointfmt(p: float) -> str:
     p_i = math.floor(p + 0.5)
-    if p_i == 0:
+    return numfmt_signed(p_i)
+
+
+def numfmt(x: float) -> str:
+    return f"{x:g}"
+
+
+def numfmt_signed(x: float) -> str:
+    if x == 0:
         return "0"
     else:
-        return f"{p_i:+g}"
+        return f"{x:+g}"
+
+
+def change_fmt(x: T, y: T, fmt: Callable[[T], str]) -> str:
+    return change(fmt(x), fmt(y))
 
 
 def change(x: str, y: str) -> str:
@@ -474,8 +494,8 @@ def main() -> None:
     now_state = collect_state(data, now_time)
     prev_state = collect_state(data, prev_time)
 
-    now_statistic = statistic(now_state, now_time)
-    prev_statistic = statistic(prev_state, prev_time)
+    nstats = statistic(now_state, now_time)
+    pstats = statistic(prev_state, prev_time)
 
     with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
         f.write(data.model_dump_json(indent=2))
@@ -489,19 +509,20 @@ def main() -> None:
 
         write("-- Blueberry --")
         write(
-            f"时间: {change(timefmt(prev_time), timefmt(now_time))} ({deltafmt_signed(now_time-prev_time, True, '0')})"
+            f"时间: {change_fmt(prev_time, now_time, timefmt)}"
+            + (
+                f" ({deltafmt_signed(now_time - prev_time, True, '0')})"
+                if now_time != prev_time
+                else ""
+            )
         )
         write(
-            f"Goldie点数: {change(pointfmt(prev_statistic.Goldie点数), pointfmt(now_statistic.Goldie点数))}"
+            f"Goldie点数: {change_fmt(pstats.Goldie点数, nstats.Goldie点数, pointfmt)}"
         )
+        write(f"- 主要: {change_fmt(pstats.任务点数, nstats.任务点数, pointfmt)}")
+        write(f"- 状态: {change_fmt(pstats.状态点数, nstats.状态点数, pointfmt)}")
         write(
-            f"- 主要: {change(pointfmt(prev_statistic.任务点数), pointfmt(now_statistic.任务点数))}"
-        )
-        write(
-            f"- 状态: {change(pointfmt(prev_statistic.状态点数), pointfmt(now_statistic.状态点数))}"
-        )
-        write(
-            f"- 其他任务: {change(pointfmt(prev_statistic.其他任务点数), pointfmt(now_statistic.其他任务点数))}"
+            f"- 其他任务: {change_fmt(pstats.其他任务点数, nstats.其他任务点数, pointfmt)}"
         )
         write("")
 
@@ -509,40 +530,61 @@ def main() -> None:
         # 8小时(时长) * 80%(工作-休息比) ≈ 6.5小时
         推荐用时 = timedelta(hours=6.5)
         write(
-            f"平均每日: {change(deltafmt_signed(prev_statistic.总每日用时), deltafmt_signed(now_statistic.总每日用时))} (推荐用时的 {now_statistic.总每日用时 / 推荐用时 :.0%})"
+            f"平均每日: {change_fmt(pstats.总每日用时, nstats.总每日用时, deltafmt_signed)} (推荐用时的 {nstats.总每日用时 / 推荐用时 :.0%})"
         )
         for task in now_state.任务.values():
-            tstats = now_statistic.任务统计.get(task.名称, None)
-            assert tstats is not None
-            mark = tstats.标记
-            点数str = ""
-            if tstats.点数 is not None:
-                prev_stat = prev_statistic.任务统计.get(task.名称)
-                prev_point = prev_stat.点数 if prev_stat is not None else None
-                if prev_point is not None:
-                    点数str = f" [{change(pointfmt(prev_point),pointfmt(tstats.点数))}]"
+            nstat = nstats.任务统计.get(task.名称, None)
+            pstat = pstats.任务统计.get(task.名称)
+            assert nstat is not None
+            if pstat is None:
+                pstat = nstat
+            mark = nstat.标记
+            point_str = ""
+            if nstat.点数 is not None:
+                if pstat.点数 is not None:
+                    point_str = f" [{change_fmt(pstat.点数,nstat.点数,pointfmt)}]"
                 else:
-                    点数str = f" [{pointfmt(tstats.点数)}]"
+                    point_str = f" [{pointfmt(nstat.点数)}]"
             write(
-                f"{mark}{点数str} {task.标题} 开始: {timefmt(task.开始, now_time)} 结束: {timefmt(task.结束, now_time)}"
+                f"{mark}{point_str} {task.标题}"
+                + f" 开始: {timefmt(task.开始, now_time)}"
+                + f" 结束: {timefmt(task.结束, now_time)}"
             )
+            progress_line = "  >"
+            progress_line += f" 已完成: {change_fmt(pstat.进度, nstat.进度, numfmt)}"
+            if pstat.进度 != nstat.进度:
+                progress_line += f" ({numfmt_signed(nstat.进度 - pstat.进度)})"
+            if nstat.进度描述 is not None:
+                progress_line += f' "{nstat.进度描述}"'
+            progress_line += (
+                f" 总用时: {change_fmt(pstat.用时, nstat.用时, deltafmt_signed)}"
+            )
+            if pstat.用时 != nstat.用时:
+                progress_line += f" ({deltafmt_signed(nstat.用时 - pstat.用时, True)})"
+
             if task.总数 is not None:
-                write(
-                    f"  > 已完成: {tstats.进度:g}/{task.总数:g} ({tstats.进度/task.总数:.0%})"
+                progress_line += (
+                    f" 总数:{task.总数:g} (完成了 {nstat.进度 / task.总数:.0%})"
                 )
-            else:
-                write(f"  > 已完成: {tstats.进度:g}")
-            if tstats.速度 is not None:
+            write(progress_line)
+
+            if nstat.速度 is not None:
                 write(
-                    f"  > 速度: {tstats.速度.速度:.3g}/h 平均每日用时: {deltafmt_signed(tstats.速度.每日用时)}"
+                    "  >"
+                    + f" 速度: {nstat.速度.速度:.3g}/h"
+                    + f" 平均每日用时: {deltafmt_signed(nstat.速度.每日用时)}"
                 )
-            if tstats.预计 is not None:
+            if nstat.预计 is not None:
                 write(
-                    f"  > 预计完成时间: {deltafmt_signed(tstats.预计.预计完成时间)} 预计可用时间: {deltafmt_signed(tstats.预计.预计可用时间)} 差距: {deltafmt_signed(tstats.预计.差距, True)}"
+                    "  >"
+                    + f" 预计完成时间: {deltafmt_signed(nstat.预计.预计完成时间)}"
+                    + f" 预计可用时间: {deltafmt_signed(nstat.预计.预计可用时间)}"
+                    + f" 差距: {deltafmt_signed(nstat.预计.差距, True)}"
                 )
             if task.描述 is not None:
                 write(indent(task.描述, "    "))
             write("")
+            # TODO 提前开始任务
 
         write("-- 其他任务 --")
         for mark, title in [
@@ -582,12 +624,20 @@ def main() -> None:
                     if todo.描述 is not None:
                         write(indent(todo.描述, "    "))
                     write("")
-        if now_statistic.其他任务生效:
+        if nstats.其他任务生效:
             write("最近完成:")
-            for todo_name in now_statistic.其他任务生效:
-                todo = now_state.待办事项[todo_name]
+            todos = [x for x in now_state.待办事项.values() if x.完成 is not None]
+            for todo in todos:
+                assert todo.完成 is not None
+                if not (todo.名称 in nstats.其他任务生效 or todo.完成 > prev_time):
+                    continue
+                point_str = (
+                    f" [{pointfmt(todo.点数)}]"
+                    if todo.名称 in nstats.其他任务生效
+                    else ""
+                )
                 write(
-                    f"= [{pointfmt(todo.点数)}] {todo.标题}"
+                    f"={point_str} {todo.标题}"
                     + (
                         " 开始: " + timefmt(todo.开始, now_time)
                         if todo.开始 is not None
@@ -635,10 +685,13 @@ def main() -> None:
                 active = False
             if status.结束 is not None and status.结束 < now_time:
                 active = False
-            if prev_state.状态.get(status.名称) == status:
+            pstatus = prev_state.状态.get(status.名称)
+            if pstatus == status:
                 # 状态发生变化的时候不隐藏
                 if not active:
                     continue
+            if pstatus is None:
+                pstatus = status
             if status.点数 is None:
                 mark = "="
             elif status.点数 > 0:
@@ -648,9 +701,13 @@ def main() -> None:
             else:
                 mark = "o"
             pointstr = ""
-            if status.点数 is not None:
-                if active:
-                    pointstr = f" [{pointfmt(status.点数)}]"
+            p点数 = pstatus.点数
+            if p点数 is None:
+                p点数 = 0
+            if status.点数 is not None and active:
+                pointstr = f" [{change_fmt(p点数, status.点数, pointfmt)}]"
+            else:
+                pointstr = f" [{change_fmt(p点数, 0, pointfmt)}]"
             write(
                 f"{mark}{pointstr} {status.标题}"
                 + (
