@@ -13,10 +13,13 @@ from pydantic import BaseModel, ConfigDict
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 import wcwidth  # type: ignore
+
 # 用于tabulate的宽度计算
 from tabulate import tabulate
 
 warnings.simplefilter(action="ignore", category=UserWarning)
+
+推荐用时 = timedelta(hours=6.5)
 
 
 class AppendOnly(BaseModel):
@@ -96,6 +99,11 @@ class HintModel(BaseModel):
     描述: str | None = None
 
 
+class WorktimeModel(BaseModel):
+    开始: datetime_time
+    结束: datetime_time
+
+
 AppendOnlyModel = TypeVar("AppendOnlyModel", bound=AppendOnly)
 T = TypeVar("T")
 
@@ -144,6 +152,9 @@ class Data(BaseModel):
     状态: list[StatusModel | DeleteModel]
     待办事项: list[TodoModel | DeleteModel]
     提示: list[HintModel]
+    工作时段: list[WorktimeModel] = [
+        WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
+    ]
 
 
 class State(BaseModel):
@@ -152,6 +163,7 @@ class State(BaseModel):
     状态: dict[str, StatusModel]
     待办事项: dict[str, TodoModel]
     提示: list[HintModel]
+    工作时段: list[WorktimeModel]
 
 
 def mark_delete(x: dict[str, Any]) -> dict[str, Any]:
@@ -167,7 +179,12 @@ def load_data(workbook: str) -> Data:
     状态 = parse_append_only_table(wb["状态"], StatusModel)
     待办事项 = parse_append_only_table(wb["待办事项"], TodoModel)
     提示 = parse_model_table(wb["提示"], HintModel)
-    return Data(状态=状态, 任务=任务, 进度=进度, 待办事项=待办事项, 提示=提示)
+    工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
+    if "工作时段" in wb.sheetnames:
+        工作时段 = parse_model_table(wb["工作时段"], WorktimeModel)
+    return Data(
+        状态=状态, 任务=任务, 进度=进度, 待办事项=待办事项, 提示=提示, 工作时段=工作时段
+    )
 
 
 def collect_lines(
@@ -212,6 +229,7 @@ def collect_state(data: Data, now_time: datetime) -> State:
         状态=collect_lines(data.状态, now_time),
         待办事项=collect_lines(data.待办事项, now_time),
         提示=collect_hints(data.提示, now_time),
+        工作时段=data.工作时段,
     )
 
 
@@ -254,12 +272,62 @@ class StateStats:
     总每日用时: timedelta
 
 
+def workday_time(time: datetime, worktime: list[WorktimeModel]) -> timedelta:
+    # 计算某个时间点当天已经过了多少工作时间。
+    delta = timedelta(0)
+    for wt in worktime:
+        wt_begin = datetime.combine(time, wt.开始)
+        wt_end = datetime.combine(time, wt.结束)
+        # 跨天的情况
+        if wt_end <= wt_begin:
+            wt_end += timedelta(days=1)
+        if time < wt_begin:
+            pass
+        elif time < wt_end:
+            delta += time - wt_begin
+        else:
+            delta += wt_end - wt_begin
+    return delta
+
+
+def workdays(begin: datetime, end: datetime, worktime: list[WorktimeModel]) -> float:
+    # 计算两个时间之间的工作时长
+    # 注意，这里将一天工作时长视为“一天”。
+    # 如果实际的工作时长是 3 小时，而一天的工作时间和是 6 小时，那么就会得到 0.5 天
+
+    # 为了避免过多的分类讨论，使用定数法
+    begin_date = begin.date()
+    end_date = end.date()
+
+    begin_time = begin.time()
+    end_time = end.time()
+
+    datediff = (end_date - begin_date) / timedelta(days=1)
+
+    begin_time_day = workday_time(begin, worktime)
+    end_time_day = workday_time(end, worktime)
+    total_time_day = timedelta(0)
+
+    for wt in worktime:
+        wt_begin = datetime.combine(end, wt.开始)
+        wt_end = datetime.combine(end, wt.结束)
+        if wt_end <= wt_begin:
+            wt_end += timedelta(days=1)
+        total_time_day += wt_end - wt_begin
+
+    timediff = (end_time_day - begin_time_day) / total_time_day
+    return datediff + timediff
+
+
 def calculate_speed(
-    progress: list[ProgressModel], begin_time: datetime, now_time: datetime
+    progress: list[ProgressModel],
+    begin_time: datetime,
+    now_time: datetime,
+    worktime: list[WorktimeModel],
 ) -> TaskSpeed | None:
     # 近期记录
     MIN_TIME = timedelta(hours=2)
-    MIN_TIMESPAN = timedelta(days=3)
+    MIN_TIMESPAN = 3
     new_time = now_time
     tot_time = timedelta(0)
     new_progress = progress[-1].进度
@@ -270,7 +338,10 @@ def calculate_speed(
     # 选择“开始的记录”后“开始的记录”本身的时间不包含在总时间内（那是起点）
     for p in reversed(progress):
         old_time = p.时间
-        if tot_time > MIN_TIME and (new_time - old_time) > MIN_TIMESPAN:
+        if (
+            tot_time > MIN_TIME
+            and workdays(old_time, new_time, worktime) > MIN_TIMESPAN
+        ):
             found = True
             old_progress = p.进度
             break
@@ -285,7 +356,7 @@ def calculate_speed(
         # bad condition
         return None
     速度 = (new_progress - old_progress) / (tot_time / timedelta(hours=1))
-    每日用时 = tot_time / ((new_time - old_time) / timedelta(days=1))
+    每日用时 = tot_time / workdays(old_time, new_time, worktime)
     return TaskSpeed(速度=速度, 每日用时=每日用时)
 
 
@@ -295,6 +366,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     任务点数 = 0.0
     任务统计: dict[str, TaskStats] = {}
     总每日用时 = timedelta(0)
+    worktime = now_state.工作时段
     for task in now_state.任务.values():
         标记: Literal["*", "-", "=", "!"] = "*"
         if now_time < task.开始:
@@ -315,7 +387,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 if node.描述 is not None or node.进度 != 进度:
                     进度描述 = node.描述
                 用时 += node.用时
-            速度 = calculate_speed(progress, task.开始, now_time)
+            速度 = calculate_speed(progress, task.开始, now_time, worktime)
             if task.总数 is not None:
                 if 进度 >= task.总数:
                     标记 = "="
@@ -323,7 +395,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         if 速度 and task.总数 is not None:
             总每日用时 += 速度.每日用时
             预计完成时间 = timedelta(hours=1) * (task.总数 - current.进度) / 速度.速度
-            预计可用时间 = (task.结束 - now_time) / timedelta(days=1) * 速度.每日用时
+            预计可用时间 = workdays(now_time, task.结束, worktime) * 速度.每日用时
             差距 = 预计可用时间 - 预计完成时间
             预计 = TaskEstimate(
                 预计完成时间=预计完成时间, 预计可用时间=预计可用时间, 差距=差距
@@ -341,10 +413,9 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             end_time = now_state.任务[name].结束
             if end_time > now_time:
                 # 提前完成的奖励
-                stats.点数 = 100 * (end_time - now_time) / timedelta(days=1)
+                stats.点数 = 100 * workdays(now_time, end_time, worktime)
         else:
             if stats.预计 is not None:
-                推荐用时 = timedelta(hours=6.5)
                 if stats.预计.差距 > timedelta(0):
                     # 提前的任务，使用推荐用时作为总每日用时来估计“提前天数”，防止“完成后休息”的行为反而提高点数（继续提前完成反而降低点数）
                     stats.点数 = stats.预计.差距 / 推荐用时 * 100
@@ -355,7 +426,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 start_time = now_state.任务[name].开始
                 if now_time > start_time:
                     # 延迟开始的惩罚
-                    stats.点数 = -100 * (now_time - start_time) / timedelta(days=1)
+                    stats.点数 = -100 * workdays(start_time, now_time, worktime)
         if stats.点数 is not None:
             任务点数 += stats.点数
 
@@ -473,6 +544,7 @@ def live_server(workbook: str) -> None:
 
 
 def main() -> None:
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-l", "--live", action="store_true", help="开启实时点数显示HTTP网页"
@@ -571,7 +643,6 @@ def main() -> None:
     write("-- 今日进度 --")
     今日用时 = timedelta(0)
     # 8小时(时长) * 80%(工作-休息比) ≈ 6.5小时
-    推荐用时 = timedelta(hours=6.5)
     table_line: list[list[str]] = []
     for task in now_state.任务.values():
         nstat = nstats.任务统计.get(task.名称, None)
@@ -593,7 +664,7 @@ def main() -> None:
         if nstat.进度 != y进度:
             finish_str += f" ({numfmt_signed(nstat.进度 - y进度)})"
         y用时 = ystat.用时 if ystat is not None else timedelta(0)
-        timeused_str = deltafmt_signed(nstat.用时 - y用时)
+        timeused_str = deltafmt_signed(nstat.用时 - y用时, False, "")
         descp_str = nstat.进度描述 if nstat.进度描述 is not None else ""
         total_str = f"{task.总数:g}" if task.总数 is not None else ""
         table_line.append(
@@ -612,7 +683,9 @@ def main() -> None:
         table_line,
         headers=["任务", "完成", "总数", "用时", "剩余", "点数", "描述"],
     )
-    write(f"今日用时: {deltafmt_signed(今日用时)} (推荐用时的 {今日用时 / 推荐用时 :.0%})")
+    write(
+        f"今日用时: {deltafmt_signed(今日用时)} (推荐用时的 {今日用时 / 推荐用时 :.0%})"
+    )
     write("")
     write(table)
     write("")
@@ -660,7 +733,7 @@ def main() -> None:
         if nstat.速度 is not None:
             write(
                 "  >"
-                + f" 速度: {nstat.速度.速度:.3g}/h"
+                + f" 速度: {nstat.速度.速度:.3g}/小时"
                 + f" 平均每日用时: {deltafmt_signed(nstat.速度.每日用时)}"
             )
         if nstat.预计 is not None:
@@ -813,6 +886,33 @@ def main() -> None:
 
     if not args.nologging:
         logfile.close()
+
+
+def test_workdays() -> None:
+    worktime = [
+        WorktimeModel(
+            开始=datetime_time(4, 0),
+            结束=datetime_time(8, 0),
+        ),
+        WorktimeModel(
+            开始=datetime_time(12, 0),
+            结束=datetime_time(16, 0),
+        ),
+        WorktimeModel(
+            开始=datetime_time(22, 0),
+            结束=datetime_time(0, 0),
+        ),
+    ]
+    prev_time = datetime.now()
+    now_time = prev_time
+    for i in range(100):
+        now_time += timedelta(hours=0.5)
+        days = workdays(prev_time, now_time, worktime)
+        print(prev_time, now_time, days)
+    for i in range(100):
+        prev_time += timedelta(hours=0.5)
+        days = workdays(prev_time, now_time, worktime)
+        print(prev_time, now_time, days)
 
 
 if __name__ == "__main__":
