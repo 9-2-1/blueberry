@@ -2,3 +2,5 @@
 *.un~
 .mypy_cache
 data
+blueberry.txt
+记录.xlsx
