@@ -1,2 +1,2 @@
-call conda activate blueberry
-python main.py
+@call conda run --no-capture-output -n blueberry python main.py
+@pause
