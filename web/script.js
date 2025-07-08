@@ -1,15 +1,10 @@
 function updatePoints() {
+  const point_thresholds = [-500, -200, 0, 200, 500];
+  const rating_lists = ["D", "C", "B", "A", "AA", "AAA"];
   fetch("/get_points", { method: "post" })
-    .then((response) => response.json())
+    .then((response) => response.text())
     .then((points) => {
       document.getElementById("points").innerText = points;
-      document.getElementById("app").classList.remove("status-D");
-      document.getElementById("app").classList.remove("status-C");
-      document.getElementById("app").classList.remove("status-B");
-      document.getElementById("app").classList.remove("status-A");
-      document.getElementById("app").classList.remove("status-AA");
-      const point_thresholds = [-500, -200, 0, 200, 500];
-      const rating_lists = ["D", "C", "B", "A", "AA", "AAA"];
       let rating = "D";
       for (const x of rating_lists) {
         document.getElementById("app").classList.remove("status-" + x);
@@ -24,6 +19,9 @@ function updatePoints() {
     })
     .catch((error) => {
       console.error(error);
+      for (const x of rating_lists) {
+        document.getElementById("app").classList.remove("status-" + x);
+      }
       document.getElementById("points").innerText = "----";
       setTimeout(updatePoints, 10000);
     });
