@@ -667,9 +667,9 @@ def main() -> None:
                 point_str = change_fmt(qstat.点数, nstat.点数, pointfmt)
             else:
                 point_str = pointfmt(nstat.点数)
-        left_str = deltafmt_signed(task.结束 - now_time)
+        left_str = deltafmt_signed(task.结束 - now_time) + "后结束"
         if now_time < task.开始:
-            left_str = "未开始"
+            left_str = deltafmt_signed(task.开始 - now_time) + "后开始"
         if task.总数 is not None and nstat.进度 >= task.总数:
             left_str = "已完成"
         q进度 = qstat.进度 if qstat is not None else 0
@@ -910,14 +910,17 @@ def main() -> None:
             active = False
         if status.开始 is not None and status.开始 > now_time:
             active = False
-        if status.结束 is not None and status.结束 < now_time:
+        if status.结束 is not None and status.结束 <= now_time:
             active = False
         pstatus = prev_state.状态.get(status.名称)
+        status_changed = False
         if pstatus == status:
             # 状态发生变化的时候不隐藏
             if not active:
                 # 隐藏不生效的状态
                 continue
+        else:
+            status_changed = True
         if pstatus is None:
             pstatus = status
         if status.点数 is None:
@@ -939,7 +942,7 @@ def main() -> None:
         if args.short:
             table_line.append([status.标题, change_fmt(p点数, s点数, pointfmt)])
             # 简要模式不显示没变化的状态
-            if pstatus == status:
+            if not status_changed:
                 continue
         write(
             f"{mark} [{change_fmt(p点数, s点数, pointfmt)}] {status.标题}"
