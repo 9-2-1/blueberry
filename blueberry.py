@@ -457,7 +457,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     )
 
 
-def deltafmt_unsigned(delta: timedelta) -> str:
+def timedeltafmt_unsigned(delta: timedelta) -> str:
     if delta > timedelta(days=7):
         return f"{delta // timedelta(days=1)}天"
     elif delta > timedelta(days=1):
@@ -468,16 +468,16 @@ def deltafmt_unsigned(delta: timedelta) -> str:
         return f"{delta.seconds // 60}分钟"
 
 
-def deltafmt_signed(
+def timedeltafmt(
     delta: timedelta, positive: bool = False, now_str: str = "0"
 ) -> str:
     if delta > timedelta(minutes=1):
         if positive:
-            return f"+{deltafmt_unsigned(delta)}"
+            return f"+{timedeltafmt_unsigned(delta)}"
         else:
-            return deltafmt_unsigned(delta)
+            return timedeltafmt_unsigned(delta)
     elif delta < timedelta(minutes=-1):
-        return f"-{deltafmt_unsigned(-delta)}"
+        return f"-{timedeltafmt_unsigned(-delta)}"
     else:
         return now_str
 
@@ -486,7 +486,7 @@ def timefmt(t: datetime, now: datetime | None = None) -> str:
     timestr = t.strftime("%m/%d %H:%M")
     if now is not None:
         delta = t - now
-        timestr += f" ({deltafmt_signed(delta, True, "现在")})"
+        timestr += f" ({timedeltafmt(delta, True, "现在")})"
     return timestr
 
 
@@ -506,7 +506,7 @@ def numfmt_signed(x: float, zero: str = "0") -> str:
         return f"{x:+g}"
 
 
-def change_fmt(x: T, y: T, fmt: Callable[[T], str]) -> str:
+def changefmt(x: T, y: T, fmt: Callable[[T], str]) -> str:
     return change(fmt(x), fmt(y))
 
 
@@ -514,7 +514,7 @@ def change(x: str, y: str) -> str:
     if x == y:
         return x
     else:
-        return f"{x} -> {y}"
+        return f"{x}→{y}"
 
 
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
@@ -535,6 +535,27 @@ def live_server(workbook: str) -> None:
     app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host="0.0.0.0", port=26019)
 
+@dataclass
+class ReportData:
+    time: datetime
+    state: State
+    stats: StateStats
+
+def report_points(N: ReportData, P: ReportData | None, args: argparse.Namespace) -> str:
+    report = ""
+    if P is not None:
+        report += f"Goldie点数:{changefmt(P.stats.Goldie点数, N.stats.Goldie点数, pointfmt)} "
+        report += f"(任务:{changefmt(P.stats.任务点数, N.stats.任务点数, pointfmt)}"
+        report += f" 状态:{changefmt(P.stats.状态点数, N.stats.状态点数, pointfmt)}"
+        report += f" 其他:{changefmt(P.stats.其他任务点数, N.stats.其他任务点数, pointfmt)})\n"
+        report += f"平均每日用时:{changefmt(P.stats.总每日用时, N.stats.总每日用时, timedeltafmt_unsigned)}\n"
+    else:
+        report += f"Goldie点数:{pointfmt(N.stats.Goldie点数)} "
+        report += f"(任务:{pointfmt(N.stats.任务点数)}"
+        report += f" 状态:{pointfmt(N.stats.状态点数)}"
+        report += f" 其他:{pointfmt(N.stats.其他任务点数)})\n"
+        report += f"平均每日用时:{timedeltafmt_unsigned(N.stats.总每日用时)}\n"
+    return report
 
 def main() -> None:
 
@@ -565,11 +586,22 @@ def main() -> None:
         help="表格文件路径 (默认: 记录.xlsx)",
     )
     parser.add_argument(
-        "-s", "--short", action="store_true", help="简化报告，只显示关键内容和变化"
+        "-s", "--short", action="store_true", help="简化报告"
+    )
+    parser.add_argument(
+        "-p", "--diff", action="store_true", help="只显示两个时间点不同的部分"
     )
     parser.add_argument(
         "-n", "--nologging", action="store_true", help="不保存报告为文件"
     )
+    parser.add_argument(
+        "-D", "--debugspeed", action="store_true", help="显示速度信息"
+    )
+    parser.add_argument(
+        "-N", "--shownote", action="store_true", help="显示说明"
+    )
+
+
     args = parser.parse_args()
 
     if args.live:
@@ -583,394 +615,49 @@ def main() -> None:
         now_time = datetime.fromisoformat(args.time)
     else:
         now_time = datetime.now()
+    yesterday_time = now_time.replace(hour=0, minute=0, second=0)
     if args.from_ is not None:
         prev_time = datetime.fromisoformat(args.from_)
-    else:
-        prev_time = now_time
-    yesterday_time = now_time.replace(hour=0, minute=0, second=0)
-    if args.dayreport:
+    elif args.dayreport:
         prev_time = yesterday_time
+    else:
+        prev_time = None
 
     now_state = collect_state(data, now_time)
-    yesterday_state = collect_state(data, yesterday_time)
-    prev_state = collect_state(data, prev_time)
+    now_stats = statistic(now_state, now_time)
+    now_data = ReportData(now_time, now_state, now_stats)
 
-    nstats = statistic(now_state, now_time)
-    ystats = statistic(yesterday_state, yesterday_time)
-    pstats = statistic(prev_state, prev_time)
+    yesterday_state = collect_state(data, yesterday_time)
+    yesterday_stats = statistic(yesterday_state, yesterday_time)
+    yesterday_data = ReportData(yesterday_time, yesterday_state, yesterday_stats)
+
+    prev_data = None
+    if prev_time is not None:
+        prev_state = collect_state(data, prev_time)
+        prev_stats = statistic(prev_state, prev_time)
+        prev_data = ReportData(prev_time, prev_state, prev_stats)
+
+    report = ""
+    report += report_points(now_data, prev_data, args)
+    # report += report_main_tasks(now_data, prev_data, args)
+    # report += report_todo_tasks(now_data, prev_data, args)
+    # report += report_statuses(now_data, prev_data, args)
+    # report += report_hints(now_data, prev_data, args)
+
+    if args.shownote:
+        report += "-- 说明 --\n"
+        with open("blueberry说明.txt", "r", encoding="utf-8") as g:
+            report += g.read() + "\n\n"
 
     if not args.nologging:
         if not os.path.exists("data"):
             os.makedirs("data")
         with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
             f.write(data.model_dump_json(indent=2))
+        with open(f"data/{tmark}.txt", "w", encoding="utf-8") as f:
+            f.write(report)
 
-    if not args.nologging:
-        logfile = open(f"data/{tmark}.txt", "w", encoding="utf-8")
-
-        def write(s: str) -> None:
-            print(s)
-            print(s, file=logfile)
-
-    else:
-
-        def write(s: str) -> None:
-            print(s)
-
-    mark: str
-
-    if args.short:
-        write("-- Blueberry 简短 --")
-        write("简短报告中只有更新的任务才会提供详情。")
-    else:
-        write("-- Blueberry --")
-    write(
-        f"时间: {change_fmt(prev_time, now_time, timefmt)}"
-        + (
-            f" ({deltafmt_signed(now_time - prev_time)})"
-            if now_time != prev_time
-            else ""
-        )
-    )
-    write(f"Goldie点数: {change_fmt(pstats.Goldie点数, nstats.Goldie点数, pointfmt)}")
-    write(f"- 主要: {change_fmt(pstats.任务点数, nstats.任务点数, pointfmt)}")
-    write(f"- 状态: {change_fmt(pstats.状态点数, nstats.状态点数, pointfmt)}")
-    write(
-        f"- 其他任务: {change_fmt(pstats.其他任务点数, nstats.其他任务点数, pointfmt)}"
-    )
-    write("")
-
-    # 在短格式下，主要任务的格式和今日进度的表格格式相同
-    # 因此干脆在短格式下直接把今日进度替换为主要任务
-    # 不过，如果报告的起始时间正好是今天（nowtime）的0点（使用-d参数），或者没有起始时间（prev_time=now_time），
-    # 那么保留今日进度
-
-    # 今日进度和主要任务的格式只有标题和旧记录不同，因此在开头替换标题和旧记录，同时隐藏每日时长。
-    今日用时 = timedelta(0)
-    if args.short and prev_time != now_time and prev_time != yesterday_time:
-        write("-- 主要任务 --")
-        qstats = pstats
-        today_panel_borrowed = True
-    else:
-        write("-- 今日进度 --")
-        qstats = ystats
-        today_panel_borrowed = False
-
-    table_line: list[list[str]] = []
-    for task in now_state.任务.values():
-        nstat = nstats.任务统计.get(task.名称, None)
-        qstat = qstats.任务统计.get(task.名称)
-        assert nstat is not None
-        point_str = ""
-        if nstat.点数 is not None:
-            if qstat is not None and qstat.点数 is not None:
-                point_str = change_fmt(qstat.点数, nstat.点数, pointfmt)
-            else:
-                point_str = pointfmt(nstat.点数)
-        left_str = deltafmt_signed(task.结束 - now_time) + "后结束"
-        if now_time < task.开始:
-            left_str = deltafmt_signed(task.开始 - now_time) + "后开始"
-        if task.总数 is not None and nstat.进度 >= task.总数:
-            left_str = "已完成"
-        q进度 = qstat.进度 if qstat is not None else 0
-        finish_str = change_fmt(q进度, nstat.进度, numfmt)
-        if nstat.进度 != q进度:
-            finish_str += f" ({numfmt_signed(nstat.进度 - q进度)})"
-        q用时 = qstat.用时 if qstat is not None else timedelta(0)
-        timeused_str = deltafmt_signed(nstat.用时 - q用时, False, "")
-        descp_str = nstat.进度描述 if nstat.进度描述 is not None else ""
-        total_str = f"{task.总数:g}" if task.总数 is not None else ""
-        table_line.append(
-            [
-                task.标题,
-                finish_str,
-                total_str,
-                timeused_str,
-                left_str,
-                point_str,
-                descp_str,
-            ]
-        )
-        今日用时 += nstat.用时 - q用时
-    table = tabulate(
-        table_line,
-        headers=["任务", "完成", "总数", "用时", "剩余", "点数", "进度描述"],
-    )
-    write(table)
-    write("")
-    if not today_panel_borrowed:
-        write(
-            f"今日用时: {deltafmt_signed(今日用时)} (推荐用时的 {今日用时 / 推荐用时 :.0%})"
-        )
-    write("")
-
-    if not args.short:
-        write("-- 主要任务 --")
-        write(
-            f"平均每日: {change_fmt(pstats.总每日用时, nstats.总每日用时, deltafmt_signed)} (推荐用时的 {nstats.总每日用时 / 推荐用时 :.0%})"
-        )
-        for task in now_state.任务.values():
-            nstat = nstats.任务统计.get(task.名称, None)
-            pstat = pstats.任务统计.get(task.名称)
-            assert nstat is not None
-            if pstat is None:
-                pstat = nstat
-            mark = nstat.标记
-            point_str = ""
-            if nstat.点数 is not None:
-                if pstat.点数 is not None:
-                    point_str = f" [{change_fmt(pstat.点数,nstat.点数,pointfmt)}]"
-                else:
-                    point_str = f" [{pointfmt(nstat.点数)}]"
-            write(
-                f"{mark}{point_str} {task.标题}"
-                + f" 开始: {timefmt(task.开始, now_time)}"
-                + f" 结束: {timefmt(task.结束, now_time)}"
-            )
-            progress_line = "  >"
-            progress_line += f" 已完成: {change_fmt(pstat.进度, nstat.进度, numfmt)}"
-            if pstat.进度 != nstat.进度:
-                progress_line += f" ({numfmt_signed(nstat.进度 - pstat.进度)})"
-            if nstat.进度描述 is not None:
-                progress_line += f' "{nstat.进度描述}"'
-            progress_line += (
-                f" 总用时: {change_fmt(pstat.用时, nstat.用时, deltafmt_signed)}"
-            )
-            if pstat.用时 != nstat.用时:
-                progress_line += f" ({deltafmt_signed(nstat.用时 - pstat.用时, True)})"
-
-            if task.总数 is not None:
-                progress_line += (
-                    f" 总数:{task.总数:g} (完成了 {nstat.进度 / task.总数:.0%})"
-                )
-            write(progress_line)
-
-            if nstat.速度 is not None:
-                write(
-                    "  >"
-                    + f" 速度: {nstat.速度.速度:.3g}/小时"
-                    + f" 平均每日用时: {deltafmt_signed(nstat.速度.每日用时)}"
-                )
-            if nstat.预计 is not None:
-                write(
-                    "  >"
-                    + f" 预计完成时间: {deltafmt_signed(nstat.预计.预计完成时间)}"
-                    + f" 预计可用时间: {deltafmt_signed(nstat.预计.预计可用时间)}"
-                    + f" 差距: {deltafmt_signed(nstat.预计.差距, True)}"
-                )
-            if task.描述 is not None:
-                write(indent(task.描述, "    "))
-            write("")
-
-    write("-- 其他任务 --")
-    table_line = []
-    for mark, title in [
-        ("*", "继续"),
-        ("+", "可以进行"),
-        ("-", "等待"),
-    ]:
-        todos = [
-            x for x in now_state.待办事项.values() if x.标记 == mark and x.完成 is None
-        ]
-        if todos:
-            if not args.short:
-                write(f"{title}:")
-            todos = sorted(
-                todos,
-                key=lambda x: (
-                    x.开始
-                    if x.开始 is not None
-                    else x.结束 if x.结束 is not None else datetime.max
-                ),
-            )
-            for todo in todos:
-                if args.short:
-                    table_line.append(
-                        [
-                            title,
-                            "预计" + pointfmt(todo.点数),
-                            todo.标题,
-                            (
-                                timefmt(todo.开始, now_time)
-                                if todo.开始 is not None
-                                else ""
-                            ),
-                            (
-                                timefmt(todo.结束, now_time)
-                                if todo.结束 is not None
-                                else ""
-                            ),
-                            (
-                                timefmt(todo.完成, now_time)
-                                if todo.完成 is not None
-                                else ""
-                            ),
-                        ]
-                    )
-                if not args.short or todo != prev_state.待办事项.get(todo.名称, None):
-                    write(
-                        f"{mark} (预计{pointfmt(todo.点数)}) {todo.标题}"
-                        + (
-                            " 开始: " + timefmt(todo.开始, now_time)
-                            if todo.开始 is not None
-                            else ""
-                        )
-                        + (
-                            " 结束: " + timefmt(todo.结束, now_time)
-                            if todo.结束 is not None
-                            else ""
-                        )
-                    )
-                    if todo.描述 is not None:
-                        write(indent(todo.描述, "    "))
-                    write("")
-    if nstats.其他任务生效:
-        if not args.short:
-            write("最近完成:")
-        todos = [x for x in now_state.待办事项.values() if x.完成 is not None]
-        for todo in todos:
-            assert todo.完成 is not None
-            if not (todo.名称 in nstats.其他任务生效 or todo.完成 > prev_time):
-                continue
-            if args.short:
-                table_line.append(
-                    [
-                        "已完成",
-                        pointfmt(todo.点数) if todo.名称 in nstats.其他任务生效 else "",
-                        todo.标题,
-                        timefmt(todo.开始, now_time) if todo.开始 is not None else "",
-                        timefmt(todo.结束, now_time) if todo.结束 is not None else "",
-                        timefmt(todo.完成, now_time) if todo.完成 is not None else "",
-                    ]
-                )
-            else:
-                point_str = (
-                    f" [{pointfmt(todo.点数)}]"
-                    if todo.名称 in nstats.其他任务生效
-                    else ""
-                )
-                write(
-                    f"={point_str} {todo.标题}"
-                    + (
-                        " 开始: " + timefmt(todo.开始, now_time)
-                        if todo.开始 is not None
-                        else ""
-                    )
-                    + (
-                        " 结束: " + timefmt(todo.结束, now_time)
-                        if todo.结束 is not None
-                        else ""
-                    )
-                    + (
-                        " 完成: " + timefmt(todo.完成, now_time)
-                        if todo.完成 is not None
-                        else ""
-                    )
-                )
-                if todo.描述 is not None:
-                    write(indent(todo.描述, "    "))
-                write("")
-    if args.short:
-        table = tabulate(
-            table_line, headers=["状态", "点数", "标题", "开始", "结束", "完成"]
-        )
-        write(table)
-        write("")
-
-    write("-- 提示 --")
-    hints = reversed(now_state.提示)
-    # 只显示最近一段时间或者最近几条提示
-    MAX_HINTS = 5
-    MAX_HINTS_TIME = timedelta(days=1)
-    hints_n = 0
-    for hint in hints:
-        if (
-            hints_n >= MAX_HINTS
-            and hint.时间 < now_time - MAX_HINTS_TIME
-            and hint.时间 < prev_time
-        ):
-            break
-        if args.short:
-            # 简要状态下不显示以前的提示
-            if hint.时间 < prev_time:
-                break
-        hints_n += 1
-        write(f"o {hint.标题} {timefmt(hint.时间, now_time)}")
-        if hint.描述 is not None:
-            write(indent(hint.描述, "    "))
-        write("")
-
-    write("-- 状态 --")
-    # 简要模式表格
-    table_line = []
-    for status in sorted(now_state.状态.values(), key=lambda x: x.时间, reverse=True):
-        active = True
-        if status.点数 is None:
-            active = False
-        if status.开始 is not None and status.开始 > now_time:
-            active = False
-        if status.结束 is not None and status.结束 <= now_time:
-            active = False
-        pstatus = prev_state.状态.get(status.名称)
-        status_changed = False
-        if pstatus == status:
-            # 状态发生变化的时候不隐藏
-            if not active:
-                # 隐藏不生效的状态
-                continue
-        else:
-            status_changed = True
-        if pstatus is None:
-            pstatus = status
-        if status.点数 is None:
-            mark = "="
-        elif status.点数 > 0:
-            mark = "+"
-        elif status.点数 < 0:
-            mark = "-"
-        else:
-            mark = "o"
-        p点数 = pstatus.点数
-        if p点数 is None:
-            p点数 = 0
-        if status.点数 is not None and active:
-            s点数 = status.点数
-        else:
-            s点数 = 0
-        # 简要模式下填表
-        if args.short:
-            table_line.append([status.标题, change_fmt(p点数, s点数, pointfmt)])
-            # 简要模式不显示没变化的状态
-            if not status_changed:
-                continue
-        write(
-            f"{mark} [{change_fmt(p点数, s点数, pointfmt)}] {status.标题}"
-            + (
-                " 开始: " + timefmt(status.开始, now_time)
-                if status.开始 is not None
-                else ""
-            )
-            + (
-                " 结束: " + timefmt(status.结束, now_time)
-                if status.结束 is not None
-                else ""
-            )
-        )
-        if status.描述 is not None:
-            write(indent(status.描述, "    "))
-        write("")
-    if args.short:
-        table = tabulate(table_line, headers=["状态", "点数"])
-        write(table)
-        write("")
-
-    if not args.short:
-        write("-- 说明 --")
-        with open("blueberry说明.txt", "r", encoding="utf-8") as g:
-            write(g.read())
-
-    if not args.nologging:
-        logfile.close()
+    print(report)
 
 
 def test_workdays() -> None:
