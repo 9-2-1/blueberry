@@ -6,11 +6,17 @@ from bb_parser import load_data
 from bb_collect import collect_state
 from bb_statistic import statistic
 from bb_webserver import live_server
-from bb_report import report_head, report_main_tasks, ReportData
+from bb_report import (
+    report_head,
+    report_main_tasks,
+    report_todo_tasks,
+    report_statuses,
+    report_hints,
+    ReportData,
+)
 
 
 def main() -> None:
-
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
@@ -52,7 +58,6 @@ def main() -> None:
     parser.add_argument("-D", "--debugspeed", action="store_true", help="显示速度信息")
 
     args = parser.parse_args()
-    print(args)
 
     if args.live:
         live_server(args.workbook)
@@ -93,26 +98,34 @@ def main() -> None:
     report += report_main_tasks(
         now_data,
         prev_data,
-        short=args.short,
-        daily=args.daily,
-        diff=args.diff,
         change_only=args.change_only,
         verbose=args.verbose,
+        short=args.short,
+        diff=args.diff,
     )
-    # report += report_todo_tasks(
-    #     now_data,
-    #     prev_data,
-    #     change_only=args.change,
-    #     upcoming=timedelta,
-    #     short=args.short,
-    #     diff=args.diff,
-    # )
-    # report += report_statuses(
-    #     now_data, prev_data, change_only=args.change, short=args.short, diff=args.diff
-    # )
-    # report += report_hints(
-    #     now_data, prev_data, change_only=args.change, short=args.short, diff=args.diff
-    # )
+    report += report_todo_tasks(
+        now_data,
+        prev_data,
+        change_only=args.change_only,
+        verbose=args.verbose,
+        short=args.short,
+        diff=args.diff,
+    )
+    report += report_statuses(
+        now_data,
+        prev_data,
+        change_only=args.change_only,
+        verbose=args.verbose,
+        short=args.short,
+        diff=args.diff,
+    )
+    report += report_hints(
+        now_data,
+        prev_data,
+        change_only=args.change_only,
+        verbose=args.verbose,
+        short=args.short,
+    )
 
     if args.shownote:
         report += "-- 说明 --\n"

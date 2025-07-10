@@ -8,6 +8,7 @@ import wcwidth  # type: ignore
 # 用于tabulate的宽度计算
 from tabulate import tabulate
 
+from bb_models import HintModel
 from bb_collect import State
 from bb_statistic import StateStats
 
@@ -155,33 +156,40 @@ def report_main_tasks(
 ) -> str:
     fliter_upcoming: list[str] = []
     fliter_running: list[str] = []  # 包括超时任务
-    fliter_running_change: list[str] = []
     fliter_done: list[str] = []
-    fliter_done_end_change: list[str] = []
-    fliter_done_end: list[str] = []
+    fliter_expire: list[str] = []
     for task in N.state.任务.values():
+        # change_only fliter
         tstat = N.stats.任务统计[task.名称]
+        changed = False
+        if P is not None:
+            ptask = P.state.任务.get(task.名称)
+            if ptask != task:
+                changed = True
+            else:
+                pstat = P.stats.任务统计[task.名称]
+                if pstat.进度 != tstat.进度:
+                    changed = True
+                elif pstat.用时 != tstat.用时:
+                    changed = True
+                elif P.time < task.开始 <= N.time:
+                    changed = True
+                elif P.time < task.结束 <= N.time:
+                    changed = True
+        fliter__ = None
         if task.总数 is not None and tstat.进度 >= task.总数:
             if N.time >= task.结束:
-                fliter_done_end.append(task.名称)
-                if P is not None and P.time <= task.结束:
-                    fliter_done_end_change.append(task.名称)
+                if changed:
+                    fliter__ = fliter_expire
             else:
-                fliter_done.append(task.名称)
+                fliter__ = fliter_done
         elif tstat.进度 != 0 or N.time >= task.开始:
-            fliter_running.append(task.名称)
-            if P is not None:
-                ptask = P.state.任务.get(task.名称)
-                if ptask != task or P.time < task.开始:
-                    fliter_running_change.append(task.名称)
-                else:
-                    pstat = P.stats.任务统计.get(task.名称)
-                    if pstat is None or pstat.进度 != tstat.进度:
-                        fliter_running_change.append(task.名称)
-        else:
-            # N.time < task.开始
-            if upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
-                fliter_upcoming.append(task.名称)
+            fliter__ = fliter_running
+        elif upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
+            fliter__ = fliter_upcoming
+        if fliter__ is not None:
+            if not change_only or changed:
+                fliter__.append(task.名称)
 
     def report_main_tasks_flitered(
         title: str, task_names: list[str], *, is_upcoming: bool = False
@@ -197,11 +205,6 @@ def report_main_tasks(
             tstat = N.stats.任务统计[task_name]
             t点数 = tstat.点数 if tstat.点数 is not None else 0
             statuses = []
-            verbose_str += f"  | 开始:{fmt(N.time, task.开始, diff=True)} 结束:{fmt(N.time, task.结束, diff=True)}\n"
-            if tstat.速度 is not None:
-                verbose_str += f"  | 速度:{fmt(tstat.速度.速度)}/小时 每日平均用时:{fmt(tstat.速度.每日用时)}\n"
-            if tstat.预计 is not None:
-                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距)}\n"
             if P is not None:
                 ptask = P.state.任务.get(task_name)
                 pstat = P.stats.任务统计.get(task_name)
@@ -212,22 +215,27 @@ def report_main_tasks(
                 )
                 point_str = f"{fmt(p点数, t点数, diff=diff)}"
                 if ptask != task:
-                    statuses.append(f"更新于{fmt(N.time - task.时间)}前")
+                    verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
                 if task.总数 is not None:
                     statuses.append(
-                        f"{fmt(p进度, tstat.进度, diff=diff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
+                        f"完成{fmt(p进度, tstat.进度, diff=diff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
                     )
                 else:
-                    statuses.append(f"{fmt(p进度, tstat.进度, diff=diff)}")
+                    statuses.append(f"完成{fmt(p进度, tstat.进度, diff=diff)}")
                 statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
             else:
                 point_str = f"{fmt(t点数)}"
                 if task.总数 is not None:
                     statuses.append(
-                        f"{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
+                        f"完成{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
                     )
                 else:
-                    statuses.append(f"{fmt(tstat.进度)}")
+                    statuses.append(f"完成{fmt(tstat.进度)}")
+            verbose_str += f"  | 开始:{fmt(N.time, task.开始, diff=True)} 结束:{fmt(N.time, task.结束, diff=True)}\n"
+            if tstat.速度 is not None:
+                verbose_str += f"  | 速度:{fmt(tstat.速度.速度)}/小时 每日平均用时:{fmt(tstat.速度.每日用时)}\n"
+            if tstat.预计 is not None:
+                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距, timesign=False)}\n"
             if is_upcoming:
                 statuses.append(f"{fmt(task.开始 - N.time)}后开始")
             elif N.time >= task.结束:
@@ -235,6 +243,7 @@ def report_main_tasks(
             else:
                 statuses.append(f"剩余{fmt(task.结束 - N.time)}")
             table_line.append([title, point_str, task.标题, *statuses])
+            statuses = [x for x in statuses if x != ""]
             if statuses:
                 status_str = "(" + ",".join(statuses) + ")"
             else:
@@ -251,35 +260,333 @@ def report_main_tasks(
         "即将开始", fliter_upcoming, is_upcoming=True
     )
     report_running, table_running = report_main_tasks_flitered("进行中", fliter_running)
-    report_running_change, table_running_change = report_main_tasks_flitered(
-        "进行中", fliter_running_change
+    report_done, table_done = report_main_tasks_flitered("已完成", fliter_done)
+    report_expire, table_expire = report_main_tasks_flitered("已结束", fliter_expire)
+
+    report = ""
+    if short:
+        table_line: list[list[str]] = []
+        table_line.extend(table_running)
+        table_line.extend(table_upcoming)
+        table_line.extend(table_done)
+        table_line.extend(table_expire)
+        report += tabulate(table_line, tablefmt="plain") + "\n\n"
+    else:
+        report += report_running
+        report += report_upcoming
+        report += report_done
+        report += report_expire
+    if report.strip() == "":
+        return ""
+    return "-- 主要任务 --\n" + report
+
+
+def report_todo_tasks(
+    N: ReportData,
+    P: ReportData | None,
+    *,
+    short: bool = False,
+    change_only: bool = False,
+    upcoming: float | None = None,
+    verbose: bool = False,
+    diff: bool = False,
+) -> str:
+    fliter_upcoming: list[str] = []
+    fliter_running: list[str] = []  # 包括超时任务
+    fliter_done: list[str] = []
+    fliter_expire: list[str] = []
+    fliter_cancel: list[str] = []
+    for todo in N.state.待办事项.values():
+        changed = False
+        if P is not None:
+            ptodo = P.state.待办事项.get(todo.名称)
+            if ptodo != todo:
+                changed = True
+            elif todo.开始 is not None and P.time < todo.开始 <= N.time:
+                changed = True
+            elif todo.结束 is not None and P.time < todo.结束 <= N.time:
+                changed = True
+            elif (todo.名称 in N.stats.其他任务生效) != (
+                todo.名称 in P.stats.其他任务生效
+            ):
+                changed = True
+        fliter__ = None
+        if todo.标记 is None:
+            if P is not None:
+                if changed:
+                    fliter__ = fliter_cancel
+        elif todo.名称 in N.stats.其他任务生效:
+            if changed:
+                fliter__ = fliter_done
+        elif todo.完成 is not None:
+            if changed:
+                fliter__ = fliter_expire
+        elif todo.开始 is None or N.time >= todo.开始:
+            fliter__ = fliter_running
+        elif upcoming is None or (
+            todo.开始 is not None and todo.开始 < N.time + timedelta(days=upcoming)
+        ):
+            fliter__ = fliter_upcoming
+        if fliter__ is not None:
+            if not change_only or changed:
+                fliter__.append(todo.名称)
+
+    def report_todo_tasks_flitered(
+        title: str,
+        todo_names: list[str],
+        *,
+        is_finished: bool = False,
+    ) -> tuple[str, list[list[str]]]:
+        if not todo_names:
+            return "", []
+        report = ""
+        report += f"{title}:\n"
+        table_line: list[list[str]] = []
+        for todo_name in todo_names:
+            verbose_str = ""
+            todo = N.state.待办事项[todo_name]
+            t点数 = todo.点数
+            statuses = []
+            if P is not None:
+                ptodo = P.state.待办事项.get(todo_name)
+                if ptodo != todo:
+                    verbose_str += f"  | 更新于{fmt(N.time - todo.时间)}前\n"
+                p点数 = ptodo.点数 if ptodo is not None else 0
+                if p点数 != t点数:
+                    point_str = f"{fmt(p点数, t点数, diff=diff)}"
+                else:
+                    point_str = f"{fmt(t点数)}"
+            else:
+                point_str = f"{fmt(t点数)}"
+            if todo.标记 == "+":
+                mode = "可选"
+            elif todo.标记 == "-":
+                mode = "等待"
+            elif todo.标记 == "*":
+                mode = "重要"
+            else:
+                mode = "取消"
+            if not is_finished:
+                point_str = f"预计{point_str}"
+            if todo.完成 is not None and N.time >= todo.完成:
+                statuses.append(f"{fmt(N.time - todo.完成)}前完成")
+            elif todo.开始 is not None and N.time < todo.开始:
+                statuses.append(f"{fmt(todo.开始 - N.time)}后开始")
+            elif todo.结束 is not None:
+                statuses.append(f"{fmt(todo.结束 - N.time, pos=True)}结束")
+            else:
+                statuses.append("")
+            if todo.开始 is not None or todo.结束 is not None or todo.完成 is not None:
+                verbose_str += f"  |"
+                if todo.开始 is not None:
+                    verbose_str += f" 开始:{fmt(N.time, todo.开始, diff=True)}"
+                if todo.结束 is not None:
+                    verbose_str += f" 结束:{fmt(N.time, todo.结束, diff=True)}"
+                if todo.完成 is not None:
+                    verbose_str += f" 完成:{fmt(N.time, todo.完成, diff=True)}"
+                verbose_str += "\n"
+            table_line.append([title, mode, point_str, todo.标题, *statuses])
+            statuses = [x for x in statuses if x != ""]
+            if statuses:
+                status_str = "(" + ",".join(statuses) + ")"
+            else:
+                status_str = ""
+            report += f"- [{point_str}] {todo.标题} {status_str}\n"
+            if verbose:
+                report += verbose_str
+            if todo.描述 is not None:
+                report += indent(todo.描述, "  ")
+            report += "\n\n"
+        return report, table_line
+
+    report_upcoming, table_upcoming = report_todo_tasks_flitered(
+        "即将开始", fliter_upcoming
     )
-    report_done_end, table_done_end = report_main_tasks_flitered(
-        "已结束", fliter_done_end
+    report_running, table_running = report_todo_tasks_flitered("进行中", fliter_running)
+    report_done, table_done = report_todo_tasks_flitered(
+        "已完成", fliter_done, is_finished=True
     )
-    report_done_end_change, table_done_end_change = report_main_tasks_flitered(
-        "已完成", fliter_done_end_change
+    report_cancel, table_cancel = report_todo_tasks_flitered("已取消", fliter_cancel)
+    report_expire, table_expire = report_todo_tasks_flitered(
+        "已失效", fliter_expire, is_finished=True
     )
 
     report = ""
     if short:
         table_line: list[list[str]] = []
-        if change_only:
-            table_line.extend(table_running_change)
-            table_line.extend(table_done_end_change)
-        else:
-            table_line.extend(table_running)
-            table_line.extend(table_upcoming)
-            table_line.extend(table_done_end)
-            table_line.extend(table_done_end_change)
-        report += tabulate(table_line, tablefmt="plain") + "\n"
+        table_line.extend(table_running)
+        table_line.extend(table_upcoming)
+        table_line.extend(table_done)
+        table_line.extend(table_cancel)
+        table_line.extend(table_expire)
+        report += tabulate(table_line, tablefmt="plain") + "\n\n"
     else:
-        if change_only:
-            report += report_running_change
-            report += report_done_end_change
-        else:
-            report += report_running
-            report += report_upcoming
-            report += report_done_end
-            report += report_done_end_change
-    return report
+        report += report_running
+        report += report_upcoming
+        report += report_done
+        report += report_cancel
+        report += report_expire
+    if report.strip() == "":
+        return ""
+    return "-- 待办事项 --\n" + report
+
+
+def report_statuses(
+    N: ReportData,
+    P: ReportData | None,
+    *,
+    short: bool = False,
+    change_only: bool = False,
+    upcoming: float | None = None,
+    verbose: bool = False,
+    diff: bool = False,
+) -> str:
+    fliter_upcoming: list[str] = []
+    fliter_active: list[str] = []
+    fliter_expire: list[str] = []
+    for status in N.state.状态.values():
+        changed = False
+        if P is not None:
+            pstatus = P.state.状态.get(status.名称)
+            if pstatus != status:
+                changed = True
+            elif status.开始 is not None and P.time < status.开始 <= N.time:
+                changed = True
+            elif status.结束 is not None and P.time < status.结束 <= N.time:
+                changed = True
+        fliter__ = None
+        if status.点数 is None or (status.结束 is not None and N.time >= status.结束):
+            if changed:
+                fliter__ = fliter_expire
+        elif status.开始 is None or N.time >= status.开始:
+            fliter__ = fliter_active
+        elif upcoming is None or (
+            status.开始 is not None and status.开始 < N.time + timedelta(days=upcoming)
+        ):
+            fliter__ = fliter_upcoming
+        if fliter__ is not None:
+            if not change_only or changed:
+                fliter__.append(status.名称)
+
+    def report_statuses_flitered(
+        title: str,
+        status_names: list[str],
+    ) -> tuple[str, list[list[str]]]:
+        if not status_names:
+            return "", []
+        report = ""
+        report += f"{title}:\n"
+        table_line: list[list[str]] = []
+        for status_name in status_names:
+            verbose_str = ""
+            status = N.state.状态[status_name]
+            t点数 = status.点数 if status.点数 is not None else 0
+            statuses = []
+            p点数 = 0
+            if P is not None:
+                pstatus = P.state.状态.get(status_name)
+                if pstatus != status:
+                    verbose_str += f"  | 更新于{fmt(N.time - status.时间)}前\n"
+                if pstatus is not None and pstatus.点数 is not None:
+                    p点数 = pstatus.点数
+            if p点数 != t点数:
+                point_str = f"{fmt(p点数, t点数, diff=diff)}"
+            else:
+                point_str = f"{fmt(t点数)}"
+            if status.开始 is not None and N.time < status.开始:
+                statuses.append(f"{fmt(status.开始 - N.time)}后开始")
+            elif status.结束 is not None:
+                statuses.append(f"{fmt(status.结束 - N.time, pos=True)}结束")
+            else:
+                statuses.append("")
+            if status.开始 is not None or status.结束 is not None:
+                verbose_str += f"  |"
+                if status.开始 is not None:
+                    verbose_str += f" 开始:{fmt(N.time, status.开始, diff=True)}"
+                if status.结束 is not None:
+                    verbose_str += f" 结束:{fmt(N.time, status.结束, diff=True)}"
+                verbose_str += "\n"
+            table_line.append([title, point_str, status.标题, *statuses])
+            statuses = [x for x in statuses if x != ""]
+            if statuses:
+                status_str = "(" + ",".join(statuses) + ")"
+            else:
+                status_str = ""
+            report += f"- [{point_str}] {status.标题} {status_str}\n"
+            if verbose:
+                report += verbose_str
+            if status.描述 is not None:
+                report += indent(status.描述, "  ")
+            report += "\n\n"
+        return report, table_line
+
+    report_upcoming, table_upcoming = report_statuses_flitered(
+        "即将开始", fliter_upcoming
+    )
+    report_active, table_active = report_statuses_flitered("生效中", fliter_active)
+    report_expire, table_expire = report_statuses_flitered("已失效", fliter_expire)
+
+    report = ""
+    if short:
+        table_line: list[list[str]] = []
+        table_line.extend(table_active)
+        table_line.extend(table_upcoming)
+        table_line.extend(table_expire)
+        report += tabulate(table_line, tablefmt="plain") + "\n\n"
+    else:
+        report += report_active
+        report += report_upcoming
+        report += report_expire
+    if report.strip() == "":
+        return ""
+    return "-- 状态 --\n" + report
+
+
+def report_hints(
+    N: ReportData,
+    P: ReportData | None,
+    *,
+    short: bool = False,
+    change_only: bool = False,
+    verbose: bool = False,
+) -> str:
+    flitered_hints: list[HintModel] = []
+
+    MIN_HINTS = 5
+    MIN_TIME = timedelta(days=1)
+    counts = 0
+    for hints in reversed(N.state.提示):
+        changed = False
+        if P is not None:
+            if hints.时间 and P.time < hints.时间 <= N.time:
+                changed = True
+        if not change_only or changed:
+            if verbose or hints.时间 >= N.time - MIN_TIME or counts < MIN_HINTS:
+                counts += 1
+                flitered_hints.append(hints)
+
+    def report_hints_flitered(
+        hints: list[HintModel],
+    ) -> tuple[str, list[list[str]]]:
+        if not hints:
+            return "", []
+        report = ""
+        table_line: list[list[str]] = []
+        for hint in hints:
+            table_line.append([hint.标题, fmt(N.time, hint.时间, diff=True)])
+            report += f"- {hint.标题} ({fmt(N.time, hint.时间, diff=True)})\n"
+            if hint.描述 is not None:
+                report += indent(hint.描述, "  ")
+            report += "\n\n"
+        return report, table_line
+
+    report_active, table_active = report_hints_flitered(flitered_hints)
+
+    report = ""
+    if short:
+        report += tabulate(table_active, tablefmt="plain") + "\n\n"
+    else:
+        report += report_active
+    if report.strip() == "":
+        return ""
+    return "-- 提示 --\n" + report
