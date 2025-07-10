@@ -242,6 +242,7 @@ def report_main_tasks(
                         statuses.append(
                             f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}"
                         )
+                    statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
                 else:
                     if task.总数 is not None:
                         statuses.append(
@@ -249,7 +250,6 @@ def report_main_tasks(
                         )
                     else:
                         statuses.append(f"完成{fmt(tstat.进度)}")
-                statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
             else:
                 point_str = f"{fmt(t点数)}"
                 if task.总数 is not None:
@@ -268,13 +268,13 @@ def report_main_tasks(
                     p进度 = pstat.进度 if pstat is not None else 0
                     p用时 = pstat.用时 if pstat is not None else timedelta(0)
                     statuses.append(
-                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, olddiff=olddiff)}"
+                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, pos=True, olddiff=olddiff)}"
                     )
                     statuses.append(
                         f"{fmt(p用时 - y用时, tstat.用时 - y用时, olddiff=olddiff, timesign=False)}"
                     )
                 else:
-                    statuses.append(f"今日{fmt(tstat.进度 - y进度)}")
+                    statuses.append(f"今日{fmt(tstat.进度 - y进度, pos=True)}")
                     statuses.append(f"{fmt(tstat.用时 - y用时, timesign=False)}")
 
             verbose_str += f"  | 开始:{fmt(N.time, task.开始, olddiff=False)} 结束:{fmt(N.time, task.结束, olddiff=False)}\n"
@@ -283,11 +283,9 @@ def report_main_tasks(
             if tstat.预计 is not None:
                 verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距, timesign=False)}\n"
             if is_upcoming:
-                statuses.append(f"{fmt(task.开始 - N.time)}后开始")
-            elif N.time >= task.结束:
-                statuses.append(f"过期{fmt(N.time - task.结束)}")
+                statuses.append(f"{fmt(task.开始 - N.time, pos=True)}开始")
             else:
-                statuses.append(f"剩余{fmt(task.结束 - N.time)}")
+                statuses.append(f"{fmt(task.结束 - N.time, pos=True)}到期")
             statuses.append(tstat.进度描述 if tstat.进度描述 is not None else "")
             table_line.append([title, point_str, task.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
@@ -422,9 +420,9 @@ def report_todo_tasks(
             if not is_finished:
                 point_str = f"预计{point_str}"
             if todo.完成 is not None and N.time >= todo.完成:
-                statuses.append(f"{fmt(N.time - todo.完成)}前完成")
+                statuses.append(f"{fmt(todo.完成 - N.time, pos=True)}前完成")
             elif todo.开始 is not None and N.time < todo.开始:
-                statuses.append(f"{fmt(todo.开始 - N.time)}后开始")
+                statuses.append(f"{fmt(todo.开始 - N.time, pos=True)}开始")
             elif todo.结束 is not None:
                 statuses.append(f"{fmt(todo.结束 - N.time, pos=True)}结束")
             else:
@@ -549,9 +547,9 @@ def report_statuses(
             else:
                 point_str = f"{fmt(t点数)}"
             if status.开始 is not None and N.time < status.开始:
-                statuses.append(f"{fmt(status.开始 - N.time)}后开始")
+                statuses.append(f"{fmt(N.time - status.开始, pos=True)}开始")
             elif status.结束 is not None:
-                statuses.append(f"{fmt(status.结束 - N.time, pos=True)}结束")
+                statuses.append(f"{fmt(N.time - status.结束, pos=True)}结束")
             else:
                 statuses.append("")
             if status.开始 is not None or status.结束 is not None:
