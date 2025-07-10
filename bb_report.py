@@ -222,7 +222,7 @@ def report_main_tasks(
             tstat = N.stats.任务统计[task_name]
             t点数 = tstat.点数 if tstat.点数 is not None else 0
             statuses = []
-            if P is not None and Y is None:
+            if P is not None:
                 ptask = P.state.任务.get(task_name)
                 pstat = P.stats.任务统计.get(task_name)
                 p进度 = pstat.进度 if pstat is not None else 0
@@ -233,12 +233,20 @@ def report_main_tasks(
                 point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
                 if ptask != task:
                     verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
-                if task.总数 is not None:
-                    statuses.append(
-                        f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
-                    )
+                if Y is None:
+                    if task.总数 is not None:
+                        statuses.append(
+                            f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
+                        )
+                    else:
+                        statuses.append(f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}")
                 else:
-                    statuses.append(f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}")
+                    if task.总数 is not None:
+                        statuses.append(
+                            f"完成{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
+                        )
+                    else:
+                        statuses.append(f"完成{fmt(tstat.进度)}")
                 statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
             else:
                 point_str = f"{fmt(t点数)}"
