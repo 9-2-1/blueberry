@@ -149,7 +149,6 @@ def report_main_tasks(
     Y: ReportData | None = None,
     *,
     short: bool = False,
-    daily: bool = False,
     diff: bool = True,
     change_only: bool = False,
     upcoming: float | None = None,
@@ -161,10 +160,9 @@ def report_main_tasks(
     fliter_expire: list[str] = []
     n今日用时 = timedelta(0)
     p今日用时 = timedelta(0)
-    if daily:
+    if Y is not None:
         if P is not None and N.time.date() != P.time.date():
             raise ValueError("不能对比不在同一天的每日进度")
-        assert Y is not None
         for task in N.state.任务.values():
             tstat = N.stats.任务统计[task.名称]
             ystat = Y.stats.任务统计.get(task.名称)
@@ -222,7 +220,7 @@ def report_main_tasks(
             tstat = N.stats.任务统计[task_name]
             t点数 = tstat.点数 if tstat.点数 is not None else 0
             statuses = []
-            if P is not None:
+            if P is not None and Y is None:
                 ptask = P.state.任务.get(task_name)
                 pstat = P.stats.任务统计.get(task_name)
                 p进度 = pstat.进度 if pstat is not None else 0
@@ -249,26 +247,23 @@ def report_main_tasks(
                 else:
                     statuses.append(f"完成{fmt(tstat.进度)}")
             # 今日...
-            if daily:
-                assert Y is not None
+            if Y is not None:
                 ystat = Y.stats.任务统计.get(task_name)
                 y进度 = ystat.进度 if ystat is not None else 0
                 y用时 = ystat.用时 if ystat is not None else timedelta(0)
-                if P is not None:
+                if P is not None and P.time != Y.time:
                     pstat = P.stats.任务统计.get(task_name)
                     p进度 = pstat.进度 if pstat is not None else 0
                     p用时 = pstat.用时 if pstat is not None else timedelta(0)
                     statuses.append(
-                        f"今日{fmt(tstat.进度 - y进度, p进度 - y进度, diff=diff, pos=True)}"
+                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, diff=diff)}"
                     )
                     statuses.append(
-                        f"今日{fmt(tstat.用时 - y用时, p用时 - y用时, diff=diff, timesign=False, pos=True)}"
+                        f"{fmt(p用时 - y用时, tstat.用时 - y用时, diff=diff, timesign=False)}"
                     )
                 else:
-                    statuses.append(f"今日{fmt(tstat.进度 - y进度, pos=True)}")
-                    statuses.append(
-                        f"今日{fmt(tstat.用时 - y用时, timesign=False, pos=True)}"
-                    )
+                    statuses.append(f"今日{fmt(tstat.进度 - y进度)}")
+                    statuses.append(f"{fmt(tstat.用时 - y用时, timesign=False)}")
 
             verbose_str += f"  | 开始:{fmt(N.time, task.开始, diff=True)} 结束:{fmt(N.time, task.结束, diff=True)}\n"
             if tstat.速度 is not None:
@@ -281,6 +276,7 @@ def report_main_tasks(
                 statuses.append(f"过期{fmt(N.time - task.结束)}")
             else:
                 statuses.append(f"剩余{fmt(task.结束 - N.time)}")
+            statuses.append(tstat.进度描述 if tstat.进度描述 is not None else "")
             table_line.append([title, point_str, task.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
             if statuses:
@@ -315,11 +311,11 @@ def report_main_tasks(
         report += report_upcoming
         report += report_done
         report += report_expire
-    if daily:
+    if Y is not None:
         if P is not None:
-            report += f"今日用时: {fmt(n今日用时, p今日用时)}"
+            report += f"今日用时: {fmt(p今日用时, n今日用时)}\n\n"
         else:
-            report += f"今日用时: {fmt(n今日用时)}"
+            report += f"今日用时: {fmt(n今日用时)}\n\n"
     if report.strip() == "":
         return ""
     return "-- 主要任务 --\n" + report
