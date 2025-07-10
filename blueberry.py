@@ -1,4 +1,4 @@
-from typing import Literal, Any, TypeVar, Generic, Callable
+from typing import Literal, Any, TypeVar, Generic, Callable, overload
 from dataclasses import dataclass
 from datetime import datetime, timedelta, time as datetime_time
 from textwrap import indent, wrap
@@ -71,7 +71,7 @@ class StatusModel(AppendOnly):
     # ---
     标题: str
     描述: str | None = None
-    点数: float | None = None  # 点数为None意味着这是一个“取消之前状态”的记录。
+    点数: int | None = None  # 点数为None意味着这是一个“取消之前状态”的记录。
     开始: datetime | None = None
     结束: datetime | None = None
 
@@ -84,7 +84,7 @@ class TodoModel(AppendOnly):
     标记: Literal["+", "*", "-"] | None = None  # + 未开始，* 继续，- 等待
     标题: str
     描述: str | None = None
-    点数: float = 0.0
+    点数: int = 0
     开始: datetime | None = None
     结束: datetime | None = None
     完成: datetime | None = None
@@ -248,19 +248,19 @@ class TaskStats:
     # * 进行中 - 等待开始 = 已完成 ! 已超时
     速度: TaskSpeed | None = None  # 开始的任务才能计算速度
     预计: TaskEstimate | None = None  # 开始但未完成的任务才能估计完成时间
-    点数: float | None = (
+    点数: int | None = (
         None  # 点数。到时未开始: -100 * 延后天数。已开始：100 * (时间差距 / 每日用时)。已结束：100 * 剩余天数
     )
 
 
 @dataclass
 class StateStats:
-    Goldie点数: float
-    任务点数: float
+    Goldie点数: int
+    任务点数: int
     任务统计: dict[str, TaskStats]
-    状态点数: float
+    状态点数: int
     状态生效: list[str]
-    其他任务点数: float
+    其他任务点数: int
     其他任务生效: list[str]
     总每日用时: timedelta
 
@@ -356,7 +356,7 @@ def calculate_speed(
 def statistic(now_state: State, now_time: datetime) -> StateStats:
     # Goldie点数 = 任务 + 状态 + 其他任务完成
     # 任务
-    任务点数 = 0.0
+    任务点数 = 0
     任务统计: dict[str, TaskStats] = {}
     总每日用时 = timedelta(0)
     worktime = now_state.工作时段
@@ -406,25 +406,29 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             end_time = now_state.任务[name].结束
             if end_time > now_time:
                 # 提前完成的奖励
-                stats.点数 = 100 * workdays(now_time, end_time, worktime)
+                stats.点数 = math.floor(
+                    100 * workdays(now_time, end_time, worktime) + 0.5
+                )
         else:
             if stats.预计 is not None:
                 if stats.预计.差距 > timedelta(0):
                     # 提前的任务，使用推荐用时作为总每日用时来估计“提前天数”，防止“完成后休息”的行为反而提高点数（继续提前完成反而降低点数）
-                    stats.点数 = stats.预计.差距 / 推荐用时 * 100
+                    stats.点数 = math.floor(stats.预计.差距 / 推荐用时 * 100 + 0.5)
                 else:
                     # 落后的任务，使用真正的平均每日用时估计“提前天数”。
-                    stats.点数 = stats.预计.差距 / 总每日用时 * 100
+                    stats.点数 = math.floor(stats.预计.差距 / 总每日用时 * 100 + 0.5)
             else:
                 start_time = now_state.任务[name].开始
                 if now_time > start_time:
                     # 延迟开始的惩罚
-                    stats.点数 = -100 * workdays(start_time, now_time, worktime)
+                    stats.点数 = math.floor(
+                        workdays(start_time, now_time, worktime) * -100 + 0.5
+                    )
         if stats.点数 is not None:
             任务点数 += stats.点数
 
     # 状态点数
-    状态点数 = 0.0
+    状态点数 = 0
     状态生效: list[str] = []
     for status in now_state.状态.values():
         if status.点数 is None:
@@ -437,7 +441,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         状态生效.append(status.名称)
 
     # 其他任务点数
-    其他任务点数 = 0.0
+    其他任务点数 = 0
     其他任务生效: list[str] = []
     for todo in now_state.待办事项.values():
         if todo.完成 is not None and todo.完成 > now_time - timedelta(days=3):
@@ -457,64 +461,83 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     )
 
 
-def timedeltafmt_unsigned(delta: timedelta) -> str:
-    if delta > timedelta(days=7):
-        return f"{delta // timedelta(days=1)}天"
-    elif delta > timedelta(days=1):
-        return f"{delta // timedelta(days=1)}天{delta // timedelta(hours=1) % 24}时"
-    elif delta > timedelta(hours=1):
-        return f"{delta // timedelta(hours=1)}时{delta // timedelta(minutes=1) % 60}分"
-    else:
-        return f"{delta.seconds // 60}分钟"
+FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
 
 
-def timedeltafmt(
-    delta: timedelta, positive: bool = False, now_str: str = "0"
+@overload
+def fmt(x: FmtT, *, pos: bool = False, timesign: bool = True) -> str: ...
+
+
+@overload
+def fmt(
+    x: FmtT,
+    y: FmtT,
+    *,
+    pos: bool = False,
+    diff: bool = True,
+    timesign: bool = True,
+) -> str: ...
+
+
+def fmt(
+    x: FmtT,
+    y: FmtT | None = None,
+    *,
+    pos: bool = False,
+    diff: bool = True,
+    timesign: bool = True,
 ) -> str:
-    if delta > timedelta(minutes=1):
-        if positive:
-            return f"+{timedeltafmt_unsigned(delta)}"
+    if y is None:
+        if isinstance(x, int):
+            if pos:
+                return f"{x:+d}"
+            else:
+                return f"{x:d}"
+        elif isinstance(x, float):
+            if pos:
+                return f"{x:+g}"
+            else:
+                return f"{x:g}"
+        elif isinstance(x, datetime):
+            if pos:
+                raise TypeError("datetime无符号")
+            else:
+                return x.strftime("%m/%d %H:%M")
+        elif isinstance(x, timedelta):
+            sign = ""
+            if x >= timedelta(0):
+                if pos:
+                    if timesign:
+                        sign = "后"
+                    else:
+                        sign = "+"
+                v = x
+            else:
+                if pos:
+                    if timesign:
+                        sign = "前"
+                    else:
+                        sign = "-"
+                v = -x
+            if v > timedelta(days=7):
+                vstr = f"{v // timedelta(days=1)}天"
+            elif v > timedelta(days=1):
+                vstr = f"{v // timedelta(days=1)}天{v // timedelta(hours=1) % 24}时"
+            elif v > timedelta(hours=1):
+                vstr = f"{v // timedelta(hours=1)}时{v // timedelta(minutes=1) % 60}分"
+            else:
+                vstr = f"{v.seconds // 60}分钟"
+            return vstr + sign if timesign else sign + vstr
         else:
-            return timedeltafmt_unsigned(delta)
-    elif delta < timedelta(minutes=-1):
-        return f"-{timedeltafmt_unsigned(-delta)}"
+            raise TypeError("未知类型")
     else:
-        return now_str
-
-
-def timefmt(t: datetime, now: datetime | None = None) -> str:
-    timestr = t.strftime("%m/%d %H:%M")
-    if now is not None:
-        delta = t - now
-        timestr += f" ({timedeltafmt(delta, True, "现在")})"
-    return timestr
-
-
-def pointfmt(p: float) -> str:
-    p_i = math.floor(p + 0.5)
-    return numfmt_signed(p_i)
-
-
-def numfmt(x: float) -> str:
-    return f"{x:g}"
-
-
-def numfmt_signed(x: float, zero: str = "0") -> str:
-    if x == 0:
-        return zero
-    else:
-        return f"{x:+g}"
-
-
-def changefmt(x: T, y: T, fmt: Callable[[T], str]) -> str:
-    return change(fmt(x), fmt(y))
-
-
-def change(x: str, y: str) -> str:
-    if x == y:
-        return x
-    else:
-        return f"{x}→{y}"
+        if diff:
+            if isinstance(y, timedelta):
+                return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True, timesign=False)})"
+            else:
+                return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True)})"
+        else:
+            return f"{fmt(x, pos=pos, timesign=timesign)}→{fmt(y, pos=pos, timesign=timesign)}"
 
 
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
@@ -527,7 +550,7 @@ def live_server(workbook: str) -> None:
         now_time = datetime.now()
         now_state = collect_state(data, now_time)
         now_statistic = statistic(now_state, now_time)
-        return aiohttp.web.Response(text=pointfmt(now_statistic.Goldie点数))
+        return aiohttp.web.Response(text=fmt(now_statistic.Goldie点数))
 
     app = aiohttp.web.Application()
     app.add_routes([aiohttp.web.post("/get_points", get_points)])
@@ -535,31 +558,196 @@ def live_server(workbook: str) -> None:
     app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host="0.0.0.0", port=26019)
 
+
 @dataclass
 class ReportData:
     time: datetime
     state: State
     stats: StateStats
 
-def report_points(N: ReportData, P: ReportData | None, args: argparse.Namespace) -> str:
-    report = ""
+
+def report_head(
+    N: ReportData, P: ReportData | None, *, short: bool = False, diff: bool = True
+) -> str:
+    report = "blueberry 报告\n"
     if P is not None:
-        report += f"Goldie点数:{changefmt(P.stats.Goldie点数, N.stats.Goldie点数, pointfmt)} "
-        report += f"(任务:{changefmt(P.stats.任务点数, N.stats.任务点数, pointfmt)}"
-        report += f" 状态:{changefmt(P.stats.状态点数, N.stats.状态点数, pointfmt)}"
-        report += f" 其他:{changefmt(P.stats.其他任务点数, N.stats.其他任务点数, pointfmt)})\n"
-        report += f"平均每日用时:{changefmt(P.stats.总每日用时, N.stats.总每日用时, timedeltafmt_unsigned)}\n"
+        report += f"时间:{fmt(P.time, N.time, diff=False)}\n"
+        if short:
+            # 短格式
+            report += f"点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, diff=diff)} "
+            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, diff=diff)},"
+            report += f"{fmt(P.stats.状态点数, N.stats.状态点数, diff=diff)},"
+            report += f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, diff=diff)})"
+            report += (
+                f" 日均:{fmt(P.stats.总每日用时, N.stats.总每日用时, diff=diff)}\n"
+            )
+        else:
+            # 普通格式
+            report += (
+                f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, diff=diff)} "
+            )
+            report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, diff=diff)}"
+            report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, diff=diff)}"
+            report += (
+                f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, diff=diff)})\n"
+            )
+            report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, diff=diff)}\n"
     else:
-        report += f"Goldie点数:{pointfmt(N.stats.Goldie点数)} "
-        report += f"(任务:{pointfmt(N.stats.任务点数)}"
-        report += f" 状态:{pointfmt(N.stats.状态点数)}"
-        report += f" 其他:{pointfmt(N.stats.其他任务点数)})\n"
-        report += f"平均每日用时:{timedeltafmt_unsigned(N.stats.总每日用时)}\n"
+        report += f"时间:{fmt(N.time)}\n"
+        if short:
+            # 短对比格式
+            report += f"点数:{fmt(N.stats.Goldie点数)} "
+            report += f"({fmt(N.stats.任务点数)},"
+            report += f"{fmt(N.stats.状态点数)},"
+            report += f"{fmt(N.stats.其他任务点数)})"
+            report += f" 日均:{fmt(N.stats.总每日用时)}\n"
+        else:
+            # 普通对比格式
+            report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
+            report += f"(任务:{fmt(N.stats.任务点数)}"
+            report += f" 状态:{fmt(N.stats.状态点数)}"
+            report += f" 其他:{fmt(N.stats.其他任务点数)})\n"
+            report += f"近期平均每日用时:{fmt(N.stats.总每日用时)}\n"
+    return report + "\n"
+
+
+def report_main_tasks(
+    N: ReportData,
+    P: ReportData | None,
+    *,
+    short: bool = False,
+    daily: bool = False,
+    diff: bool = True,
+    change_only: bool = False,
+    upcoming: float | None = None,
+    verbose: bool = False
+) -> str:
+    fliter_upcoming: list[str] = []
+    fliter_running: list[str] = []  # 包括超时任务
+    fliter_running_change: list[str] = []
+    fliter_done: list[str] = []
+    fliter_done_end_change: list[str] = []
+    fliter_done_end: list[str] = []
+    for task in N.state.任务.values():
+        tstat = N.stats.任务统计[task.名称]
+        if task.总数 is not None and tstat.进度 >= task.总数:
+            if N.time >= task.结束:
+                fliter_done_end.append(task.名称)
+                if P is not None and P.time <= task.结束:
+                    fliter_done_end_change.append(task.名称)
+            else:
+                fliter_done.append(task.名称)
+        elif tstat.进度 != 0 or N.time >= task.开始:
+            fliter_running.append(task.名称)
+            if P is not None:
+                ptask = P.state.任务.get(task.名称)
+                if ptask != task or P.time < task.开始:
+                    fliter_running_change.append(task.名称)
+                else:
+                    pstat = P.stats.任务统计.get(task.名称)
+                    if pstat is None or pstat.进度 != tstat.进度:
+                        fliter_running_change.append(task.名称)
+        else:
+            # N.time < task.开始
+            if upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
+                fliter_upcoming.append(task.名称)
+
+    def report_main_tasks_flitered(title: str, task_names: list[str], *, is_upcoming: bool = False) -> tuple[str, list[list[str]]]:
+        if not task_names:
+            return "", []
+        report = ""
+        report += f"{title}:\n"
+        table_line:list[list[str]] = []
+        for task_name in task_names:
+            verbose_str = ""
+            task = N.state.任务[task_name]
+            tstat = N.stats.任务统计[task_name]
+            t点数 = tstat.点数 if tstat.点数 is not None else 0
+            statuses = []
+            verbose_str += f"  | 开始:{fmt(N.time, task.开始, diff=True)} 结束:{fmt(N.time, task.结束, diff=True)}\n"
+            if tstat.速度 is not None:
+                verbose_str += f"  | 速度:{fmt(tstat.速度.速度)}/小时 每日平均用时:{fmt(tstat.速度.每日用时)}\n"
+            if tstat.预计 is not None:
+                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距)}\n"
+            if P is not None:
+                ptask = P.state.任务.get(task_name)
+                pstat = P.stats.任务统计.get(task_name)
+                p进度 = pstat.进度 if pstat is not None else 0
+                p用时 = pstat.用时 if pstat is not None else timedelta(0)
+                p点数 = pstat.点数 if pstat is not None and pstat.点数 is not None else 0
+                point_str = f"{fmt(p点数, t点数, diff=diff)}"
+                if ptask != task:
+                    statuses.append(f"更新于{fmt(N.time - task.时间)}前")
+                if task.总数 is not None:
+                    statuses.append(f"{fmt(p进度, tstat.进度, diff=diff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})")
+                else:
+                    statuses.append(f"{fmt(p进度, tstat.进度, diff=diff)}")
+                statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
+            else:
+                point_str = f"{fmt(t点数)}"
+                if task.总数 is not None:
+                    statuses.append(f"{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})")
+                else:
+                    statuses.append(f"{fmt(tstat.进度)}")
+            if is_upcoming:
+                statuses.append(f"{fmt(task.开始 - N.time)}后开始")
+            elif N.time >= task.结束:
+                statuses.append(f"过期{fmt(N.time - task.结束)}")
+            else:
+                statuses.append(f"剩余{fmt(task.结束 - N.time)}")
+            table_line.append([title, point_str, task.标题, *statuses])
+            if statuses:
+                status_str = "(" +",".join(statuses)+")"
+            else:
+                status_str = ""
+            report += f"- [{point_str}] {task.标题} {status_str}\n"
+            if verbose:
+                report += verbose_str
+            if task.描述 is not None:
+                report += indent(task.描述, "  ")
+            report += "\n\n"
+        return report, table_line
+
+
+    report_upcoming, table_upcoming = report_main_tasks_flitered("即将开始", fliter_upcoming, is_upcoming=True)
+    report_running, table_running = report_main_tasks_flitered("进行中", fliter_running)
+    report_running_change, table_running_change = report_main_tasks_flitered("进行中", fliter_running_change)
+    report_done_end, table_done_end = report_main_tasks_flitered("已结束", fliter_done_end)
+    report_done_end_change, table_done_end_change = report_main_tasks_flitered("已完成", fliter_done_end_change)
+
+    report = ""
+    if short:
+        table_line:list[list[str]] = []
+        if change_only:
+            table_line.extend(table_running_change)
+            table_line.extend(table_done_end_change)
+        else:
+            table_line.extend(table_running)
+            table_line.extend(table_upcoming)
+            table_line.extend(table_done_end)
+            table_line.extend(table_done_end_change)
+        report += tabulate(table_line, tablefmt="plain") + "\n"
+    else:
+        if change_only:
+            report += report_running_change
+            report += report_done_end_change
+        else:
+            report += report_running
+            report += report_upcoming
+            report += report_done_end
+            report += report_done_end_change
     return report
+
 
 def main() -> None:
 
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d",
+        "--daily",
+        action="store_true",
+        help="显示当天报告(开始时间将被设为当前时间0点)",
+    )
     parser.add_argument(
         "-l", "--live", action="store_true", help="开启实时点数显示HTTP网页"
     )
@@ -571,12 +759,6 @@ def main() -> None:
         help="开始时间(可选, YYYY-MM-DDTHH:MM[:SS])",
     )
     parser.add_argument("-t", "--time", "--to", action="store", help="当前时间")
-    parser.add_argument(
-        "-d",
-        "--dayreport",
-        action="store_true",
-        help="显示当天报告(开始时间将被设为当前时间0点)",
-    )
 
     parser.add_argument(
         "-w",
@@ -585,24 +767,24 @@ def main() -> None:
         default="记录.xlsx",
         help="表格文件路径 (默认: 记录.xlsx)",
     )
+    parser.add_argument("-s", "--short", action="store_true", help="简化报告")
     parser.add_argument(
-        "-s", "--short", action="store_true", help="简化报告"
+        "-c", "--change-only", action="store_true", help="只显示变化的部分"
     )
     parser.add_argument(
-        "-p", "--diff", action="store_true", help="只显示两个时间点不同的部分"
+        "-p", "--diff", action="store_true", help="显示 新(±变化) 格式，不用 旧→新 格式"
     )
     parser.add_argument(
         "-n", "--nologging", action="store_true", help="不保存报告为文件"
     )
     parser.add_argument(
-        "-D", "--debugspeed", action="store_true", help="显示速度信息"
+        "-v", "--verbose", action="store_true", help="显示详细信息"
     )
-    parser.add_argument(
-        "-N", "--shownote", action="store_true", help="显示说明"
-    )
-
+    parser.add_argument("-N", "--shownote", action="store_true", help="显示说明")
+    parser.add_argument("-D", "--debugspeed", action="store_true", help="显示速度信息")
 
     args = parser.parse_args()
+    print(args)
 
     if args.live:
         live_server(args.workbook)
@@ -618,7 +800,7 @@ def main() -> None:
     yesterday_time = now_time.replace(hour=0, minute=0, second=0)
     if args.from_ is not None:
         prev_time = datetime.fromisoformat(args.from_)
-    elif args.dayreport:
+    elif args.daily:
         prev_time = yesterday_time
     else:
         prev_time = None
@@ -638,11 +820,31 @@ def main() -> None:
         prev_data = ReportData(prev_time, prev_state, prev_stats)
 
     report = ""
-    report += report_points(now_data, prev_data, args)
-    # report += report_main_tasks(now_data, prev_data, args)
-    # report += report_todo_tasks(now_data, prev_data, args)
-    # report += report_statuses(now_data, prev_data, args)
-    # report += report_hints(now_data, prev_data, args)
+    report += report_head(now_data, prev_data, short=args.short, diff=args.diff)
+
+    report += report_main_tasks(
+        now_data,
+        prev_data,
+        short=args.short,
+        daily=args.daily,
+        diff=args.diff,
+        change_only=args.change_only,
+        verbose = args.verbose
+    )
+    # report += report_todo_tasks(
+    #     now_data,
+    #     prev_data,
+    #     change_only=args.change,
+    #     upcoming=timedelta,
+    #     short=args.short,
+    #     diff=args.diff,
+    # )
+    # report += report_statuses(
+    #     now_data, prev_data, change_only=args.change, short=args.short, diff=args.diff
+    # )
+    # report += report_hints(
+    #     now_data, prev_data, change_only=args.change, short=args.short, diff=args.diff
+    # )
 
     if args.shownote:
         report += "-- 说明 --\n"
