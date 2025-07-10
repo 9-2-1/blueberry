@@ -98,6 +98,8 @@ def main() -> None:
     report += report_main_tasks(
         now_data,
         prev_data,
+        yesterday_data,
+        daily=args.daily,
         change_only=args.change_only,
         verbose=args.verbose,
         short=args.short,
