@@ -62,7 +62,7 @@ class TodoModel(AppendOnly):
     名称: str
     时间: datetime
     # ---
-    标记: Literal["+", "*", "-"] | None = None  # + 未开始，* 继续，- 等待
+    标记: Literal["+", "*", "-"] | None = None  # + 可选，* 重要，- 等待
     标题: str
     描述: str | None = None
     点数: int = 0

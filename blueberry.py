@@ -19,13 +19,14 @@ from bb_report import (
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-d",
-        "--daily",
-        action="store_true",
-        help="显示当天报告(开始时间将被设为当前时间0点)",
+        "-l", "--live", action="store_true", help="开启实时点数显示HTTP网页"
     )
     parser.add_argument(
-        "-l", "--live", action="store_true", help="开启实时点数显示HTTP网页"
+        "-w",
+        "--workbook",
+        action="store",
+        default="记录.xlsx",
+        help="表格文件路径 (默认: 记录.xlsx)",
     )
     parser.add_argument(
         "-f",
@@ -35,30 +36,33 @@ def main() -> None:
         help="开始时间(可选, YYYY-MM-DDTHH:MM[:SS])",
     )
     parser.add_argument("-t", "--time", "--to", action="store", help="当前时间")
-
+    parser.add_argument("-s", "--short", action="store_true", help="使用简化格式")
     parser.add_argument(
-        "-w",
-        "--workbook",
-        action="store",
-        default="记录.xlsx",
-        help="表格文件路径 (默认: 记录.xlsx)",
+        "-C",
+        "--change-append",
+        action="store_true",
+        help="使用简化格式的同时用普通格式显示变化部分",
     )
-    parser.add_argument("-s", "--short", action="store_true", help="简化报告")
     parser.add_argument(
         "-c", "--change-only", action="store_true", help="只显示变化的部分"
     )
     parser.add_argument(
-        "-p",
-        "--diff",
-        action="store_false",
-        help="显示 旧→新 格式，不用 新(±变化) 格式",
+        "-d",
+        "--olddiff",
+        action="store_true",
+        help="使用 旧→新 格式，不用 新(±变化) 格式",
     )
+    parser.add_argument("-v", "--verbose", action="store_true", help="显示详细信息")
+    parser.add_argument(
+        "-D",
+        "--daily",
+        action="store_true",
+        help="显示今日进度(-t 对应的日期), 如果指定了 -f, 则 -f 和 -t 应该在同一天)",
+    )
+    parser.add_argument("-N", "--shownote", action="store_true", help="显示说明")
     parser.add_argument(
         "-n", "--nologging", action="store_true", help="不保存报告为文件"
     )
-    parser.add_argument("-v", "--verbose", action="store_true", help="显示详细信息")
-    parser.add_argument("-N", "--shownote", action="store_true", help="显示说明")
-    parser.add_argument("-D", "--debugspeed", action="store_true", help="显示速度信息")
 
     args = parser.parse_args()
 
@@ -96,7 +100,7 @@ def main() -> None:
         prev_data = ReportData(prev_time, prev_state, prev_stats)
 
     report = ""
-    report += report_head(now_data, prev_data, short=args.short, diff=args.diff)
+    report += report_head(now_data, prev_data, short=args.short, olddiff=args.olddiff)
 
     report += report_main_tasks(
         now_data,
@@ -104,29 +108,57 @@ def main() -> None:
         yesterday_data if args.daily else None,
         change_only=args.change_only,
         verbose=args.verbose,
-        short=args.short,
-        diff=args.diff,
+        short=args.short or args.change_append,
+        olddiff=args.olddiff,
     )
+    if args.change_append:
+        report += report_main_tasks(
+            now_data,
+            prev_data,
+            yesterday_data if args.daily else None,
+            change_only=True,
+            verbose=args.verbose,
+            short=False,
+            olddiff=args.olddiff,
+        )
     report += report_todo_tasks(
         now_data,
         prev_data,
         change_only=args.change_only,
         verbose=args.verbose,
-        short=args.short,
-        diff=args.diff,
+        short=args.short or args.change_append,
+        olddiff=args.olddiff,
     )
+    if args.change_append:
+        report += report_todo_tasks(
+            now_data,
+            prev_data,
+            change_only=True,
+            verbose=args.verbose,
+            short=False,
+            olddiff=args.olddiff,
+        )
     report += report_statuses(
         now_data,
         prev_data,
         change_only=args.change_only,
         verbose=args.verbose,
-        short=args.short,
-        diff=args.diff,
+        short=args.short or args.change_append,
+        olddiff=args.olddiff,
     )
+    if args.change_append:
+        report += report_statuses(
+            now_data,
+            prev_data,
+            change_only=True,
+            verbose=args.verbose,
+            short=False,
+            olddiff=args.olddiff,
+        )
     report += report_hints(
         now_data,
         prev_data,
-        change_only=args.change_only or args.short,
+        change_only=args.change_only or args.short or args.change_append,
         verbose=args.verbose,
     )
 

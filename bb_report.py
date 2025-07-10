@@ -25,7 +25,7 @@ def fmt(
     y: FmtT,
     *,
     pos: bool = False,
-    diff: bool = True,
+    olddiff: bool = True,
     timesign: bool = True,
 ) -> str: ...
 
@@ -35,7 +35,7 @@ def fmt(
     y: FmtT | None = None,
     *,
     pos: bool = False,
-    diff: bool = True,
+    olddiff: bool = True,
     timesign: bool = True,
 ) -> str:
     if y is None:
@@ -82,13 +82,13 @@ def fmt(
         else:
             raise TypeError("未知类型")
     else:
-        if diff:
+        if olddiff:
+            return f"{fmt(x, pos=pos, timesign=timesign)}→{fmt(y, pos=pos, timesign=timesign)}"
+        else:
             if isinstance(y, timedelta):
                 return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True, timesign=False)})"
             else:
                 return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True)})"
-        else:
-            return f"{fmt(x, pos=pos, timesign=timesign)}→{fmt(y, pos=pos, timesign=timesign)}"
 
 
 @dataclass
@@ -99,31 +99,33 @@ class ReportData:
 
 
 def report_head(
-    N: ReportData, P: ReportData | None, *, short: bool = False, diff: bool = True
+    N: ReportData, P: ReportData | None, *, short: bool = False, olddiff: bool = True
 ) -> str:
     report = "blueberry 报告\n"
     if P is not None:
-        report += f"时间:{fmt(P.time, N.time, diff=False)}\n"
+        report += f"时间:{fmt(P.time, N.time, olddiff=False)}\n"
         if short:
             # 短格式
-            report += f"点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, diff=diff)} "
-            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, diff=diff)},"
-            report += f"{fmt(P.stats.状态点数, N.stats.状态点数, diff=diff)},"
-            report += f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, diff=diff)})"
             report += (
-                f" 日均:{fmt(P.stats.总每日用时, N.stats.总每日用时, diff=diff)}\n"
+                f"点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
             )
+            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff)},"
+            report += f"{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff)},"
+            report += (
+                f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff)})"
+            )
+            report += f" 日均:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
         else:
             # 普通格式
+            report += f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
             report += (
-                f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, diff=diff)} "
+                f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff)}"
             )
-            report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, diff=diff)}"
-            report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, diff=diff)}"
             report += (
-                f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, diff=diff)})\n"
+                f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff)}"
             )
-            report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, diff=diff)}\n"
+            report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff)})\n"
+            report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
     else:
         report += f"时间:{fmt(N.time)}\n"
         if short:
@@ -149,15 +151,15 @@ def report_main_tasks(
     Y: ReportData | None = None,
     *,
     short: bool = False,
-    diff: bool = True,
+    olddiff: bool = True,
     change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
 ) -> str:
-    fliter_upcoming: list[str] = []
-    fliter_running: list[str] = []  # 包括超时任务
-    fliter_done: list[str] = []
-    fliter_expire: list[str] = []
+    category_upcoming: list[str] = []
+    category_running: list[str] = []  # 包括超时任务
+    category_done: list[str] = []
+    category_expire: list[str] = []
     n今日用时 = timedelta(0)
     p今日用时 = timedelta(0)
     if Y is not None:
@@ -174,7 +176,7 @@ def report_main_tasks(
                 p用时 = pstat.用时 if pstat is not None else timedelta(0)
                 p今日用时 += p用时 - y用时
     for task in N.state.任务.values():
-        # change_only fliter
+        # change_only category
         tstat = N.stats.任务统计[task.名称]
         changed = False
         if P is not None:
@@ -191,22 +193,22 @@ def report_main_tasks(
                     changed = True
                 elif P.time < task.结束 <= N.time:
                     changed = True
-        fliter__ = None
+        category__ = None
         if task.总数 is not None and tstat.进度 >= task.总数:
             if N.time >= task.结束:
                 if changed:
-                    fliter__ = fliter_expire
+                    category__ = category_expire
             else:
-                fliter__ = fliter_done
+                category__ = category_done
         elif tstat.进度 != 0 or N.time >= task.开始:
-            fliter__ = fliter_running
+            category__ = category_running
         elif upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
-            fliter__ = fliter_upcoming
-        if fliter__ is not None:
+            category__ = category_upcoming
+        if category__ is not None:
             if not change_only or changed:
-                fliter__.append(task.名称)
+                category__.append(task.名称)
 
-    def report_main_tasks_flitered(
+    def report_main_tasks_category(
         title: str, task_names: list[str], *, is_upcoming: bool = False
     ) -> tuple[str, list[list[str]]]:
         if not task_names:
@@ -228,15 +230,15 @@ def report_main_tasks(
                 p点数 = (
                     pstat.点数 if pstat is not None and pstat.点数 is not None else 0
                 )
-                point_str = f"{fmt(p点数, t点数, diff=diff)}"
+                point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
                 if ptask != task:
                     verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
                 if task.总数 is not None:
                     statuses.append(
-                        f"完成{fmt(p进度, tstat.进度, diff=diff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
+                        f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
                     )
                 else:
-                    statuses.append(f"完成{fmt(p进度, tstat.进度, diff=diff)}")
+                    statuses.append(f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}")
                 statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
             else:
                 point_str = f"{fmt(t点数)}"
@@ -256,16 +258,16 @@ def report_main_tasks(
                     p进度 = pstat.进度 if pstat is not None else 0
                     p用时 = pstat.用时 if pstat is not None else timedelta(0)
                     statuses.append(
-                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, diff=diff)}"
+                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, olddiff=olddiff)}"
                     )
                     statuses.append(
-                        f"{fmt(p用时 - y用时, tstat.用时 - y用时, diff=diff, timesign=False)}"
+                        f"{fmt(p用时 - y用时, tstat.用时 - y用时, olddiff=olddiff, timesign=False)}"
                     )
                 else:
                     statuses.append(f"今日{fmt(tstat.进度 - y进度)}")
                     statuses.append(f"{fmt(tstat.用时 - y用时, timesign=False)}")
 
-            verbose_str += f"  | 开始:{fmt(N.time, task.开始, diff=True)} 结束:{fmt(N.time, task.结束, diff=True)}\n"
+            verbose_str += f"  | 开始:{fmt(N.time, task.开始, olddiff=False)} 结束:{fmt(N.time, task.结束, olddiff=False)}\n"
             if tstat.速度 is not None:
                 verbose_str += f"  | 速度:{fmt(tstat.速度.速度)}/小时 每日平均用时:{fmt(tstat.速度.每日用时)}\n"
             if tstat.预计 is not None:
@@ -291,12 +293,14 @@ def report_main_tasks(
             report += "\n\n"
         return report, table_line
 
-    report_upcoming, table_upcoming = report_main_tasks_flitered(
-        "即将开始", fliter_upcoming, is_upcoming=True
+    report_upcoming, table_upcoming = report_main_tasks_category(
+        "即将开始", category_upcoming, is_upcoming=True
     )
-    report_running, table_running = report_main_tasks_flitered("进行中", fliter_running)
-    report_done, table_done = report_main_tasks_flitered("已完成", fliter_done)
-    report_expire, table_expire = report_main_tasks_flitered("已结束", fliter_expire)
+    report_running, table_running = report_main_tasks_category(
+        "进行中", category_running
+    )
+    report_done, table_done = report_main_tasks_category("已完成", category_done)
+    report_expire, table_expire = report_main_tasks_category("已结束", category_expire)
 
     report = ""
     if short:
@@ -329,13 +333,13 @@ def report_todo_tasks(
     change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
-    diff: bool = False,
+    olddiff: bool = False,
 ) -> str:
-    fliter_upcoming: list[str] = []
-    fliter_running: list[str] = []  # 包括超时任务
-    fliter_done: list[str] = []
-    fliter_expire: list[str] = []
-    fliter_cancel: list[str] = []
+    category_upcoming: list[str] = []
+    category_running: list[str] = []  # 包括超时任务
+    category_done: list[str] = []
+    category_expire: list[str] = []
+    category_cancel: list[str] = []
     for todo in N.state.待办事项.values():
         changed = False
         if P is not None:
@@ -350,28 +354,28 @@ def report_todo_tasks(
                 todo.名称 in P.stats.其他任务生效
             ):
                 changed = True
-        fliter__ = None
+        category__ = None
         if todo.标记 is None:
             if P is not None:
                 if changed:
-                    fliter__ = fliter_cancel
+                    category__ = category_cancel
         elif todo.名称 in N.stats.其他任务生效:
             if changed:
-                fliter__ = fliter_done
+                category__ = category_done
         elif todo.完成 is not None:
             if changed:
-                fliter__ = fliter_expire
+                category__ = category_expire
         elif todo.开始 is None or N.time >= todo.开始:
-            fliter__ = fliter_running
+            category__ = category_running
         elif upcoming is None or (
             todo.开始 is not None and todo.开始 < N.time + timedelta(days=upcoming)
         ):
-            fliter__ = fliter_upcoming
-        if fliter__ is not None:
+            category__ = category_upcoming
+        if category__ is not None:
             if not change_only or changed:
-                fliter__.append(todo.名称)
+                category__.append(todo.名称)
 
-    def report_todo_tasks_flitered(
+    def report_todo_tasks_category(
         title: str,
         todo_names: list[str],
         *,
@@ -393,7 +397,7 @@ def report_todo_tasks(
                     verbose_str += f"  | 更新于{fmt(N.time - todo.时间)}前\n"
                 p点数 = ptodo.点数 if ptodo is not None else 0
                 if p点数 != t点数:
-                    point_str = f"{fmt(p点数, t点数, diff=diff)}"
+                    point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
                 else:
                     point_str = f"{fmt(t点数)}"
             else:
@@ -419,11 +423,11 @@ def report_todo_tasks(
             if todo.开始 is not None or todo.结束 is not None or todo.完成 is not None:
                 verbose_str += f"  |"
                 if todo.开始 is not None:
-                    verbose_str += f" 开始:{fmt(N.time, todo.开始, diff=True)}"
+                    verbose_str += f" 开始:{fmt(N.time, todo.开始, olddiff=False)}"
                 if todo.结束 is not None:
-                    verbose_str += f" 结束:{fmt(N.time, todo.结束, diff=True)}"
+                    verbose_str += f" 结束:{fmt(N.time, todo.结束, olddiff=False)}"
                 if todo.完成 is not None:
-                    verbose_str += f" 完成:{fmt(N.time, todo.完成, diff=True)}"
+                    verbose_str += f" 完成:{fmt(N.time, todo.完成, olddiff=False)}"
                 verbose_str += "\n"
             table_line.append([title, mode, point_str, todo.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
@@ -439,16 +443,18 @@ def report_todo_tasks(
             report += "\n\n"
         return report, table_line
 
-    report_upcoming, table_upcoming = report_todo_tasks_flitered(
-        "即将开始", fliter_upcoming
+    report_upcoming, table_upcoming = report_todo_tasks_category(
+        "即将开始", category_upcoming
     )
-    report_running, table_running = report_todo_tasks_flitered("进行中", fliter_running)
-    report_done, table_done = report_todo_tasks_flitered(
-        "已完成", fliter_done, is_finished=True
+    report_running, table_running = report_todo_tasks_category(
+        "进行中", category_running
     )
-    report_cancel, table_cancel = report_todo_tasks_flitered("已取消", fliter_cancel)
-    report_expire, table_expire = report_todo_tasks_flitered(
-        "已失效", fliter_expire, is_finished=True
+    report_done, table_done = report_todo_tasks_category(
+        "已完成", category_done, is_finished=True
+    )
+    report_cancel, table_cancel = report_todo_tasks_category("已取消", category_cancel)
+    report_expire, table_expire = report_todo_tasks_category(
+        "已失效", category_expire, is_finished=True
     )
 
     report = ""
@@ -479,11 +485,11 @@ def report_statuses(
     change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
-    diff: bool = False,
+    olddiff: bool = False,
 ) -> str:
-    fliter_upcoming: list[str] = []
-    fliter_active: list[str] = []
-    fliter_expire: list[str] = []
+    category_upcoming: list[str] = []
+    category_active: list[str] = []
+    category_expire: list[str] = []
     for status in N.state.状态.values():
         changed = False
         if P is not None:
@@ -494,21 +500,21 @@ def report_statuses(
                 changed = True
             elif status.结束 is not None and P.time < status.结束 <= N.time:
                 changed = True
-        fliter__ = None
+        category__ = None
         if status.点数 is None or (status.结束 is not None and N.time >= status.结束):
             if changed:
-                fliter__ = fliter_expire
+                category__ = category_expire
         elif status.开始 is None or N.time >= status.开始:
-            fliter__ = fliter_active
+            category__ = category_active
         elif upcoming is None or (
             status.开始 is not None and status.开始 < N.time + timedelta(days=upcoming)
         ):
-            fliter__ = fliter_upcoming
-        if fliter__ is not None:
+            category__ = category_upcoming
+        if category__ is not None:
             if not change_only or changed:
-                fliter__.append(status.名称)
+                category__.append(status.名称)
 
-    def report_statuses_flitered(
+    def report_statuses_category(
         title: str,
         status_names: list[str],
     ) -> tuple[str, list[list[str]]]:
@@ -530,7 +536,7 @@ def report_statuses(
                 if pstatus is not None and pstatus.点数 is not None:
                     p点数 = pstatus.点数
             if p点数 != t点数:
-                point_str = f"{fmt(p点数, t点数, diff=diff)}"
+                point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
             else:
                 point_str = f"{fmt(t点数)}"
             if status.开始 is not None and N.time < status.开始:
@@ -542,9 +548,9 @@ def report_statuses(
             if status.开始 is not None or status.结束 is not None:
                 verbose_str += f"  |"
                 if status.开始 is not None:
-                    verbose_str += f" 开始:{fmt(N.time, status.开始, diff=True)}"
+                    verbose_str += f" 开始:{fmt(N.time, status.开始, olddiff=False)}"
                 if status.结束 is not None:
-                    verbose_str += f" 结束:{fmt(N.time, status.结束, diff=True)}"
+                    verbose_str += f" 结束:{fmt(N.time, status.结束, olddiff=False)}"
                 verbose_str += "\n"
             table_line.append([title, point_str, status.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
@@ -560,11 +566,11 @@ def report_statuses(
             report += "\n\n"
         return report, table_line
 
-    report_upcoming, table_upcoming = report_statuses_flitered(
-        "即将开始", fliter_upcoming
+    report_upcoming, table_upcoming = report_statuses_category(
+        "即将开始", category_upcoming
     )
-    report_active, table_active = report_statuses_flitered("生效中", fliter_active)
-    report_expire, table_expire = report_statuses_flitered("已失效", fliter_expire)
+    report_active, table_active = report_statuses_category("生效中", category_active)
+    report_expire, table_expire = report_statuses_category("已失效", category_expire)
 
     report = ""
     if short:
@@ -590,7 +596,7 @@ def report_hints(
     change_only: bool = False,
     verbose: bool = False,
 ) -> str:
-    flitered_hints: list[HintModel] = []
+    category_hints: list[HintModel] = []
 
     MIN_HINTS = 5
     MIN_TIME = timedelta(days=1)
@@ -603,9 +609,9 @@ def report_hints(
         if not change_only or changed:
             if verbose or hints.时间 >= N.time - MIN_TIME or counts < MIN_HINTS:
                 counts += 1
-                flitered_hints.append(hints)
+                category_hints.append(hints)
 
-    def report_hints_flitered(
+    def report_hints_category(
         hints: list[HintModel],
     ) -> tuple[str, list[list[str]]]:
         if not hints:
@@ -613,14 +619,14 @@ def report_hints(
         report = ""
         table_line: list[list[str]] = []
         for hint in hints:
-            table_line.append([hint.标题, fmt(N.time, hint.时间, diff=True)])
-            report += f"- {hint.标题} ({fmt(N.time, hint.时间, diff=True)})\n"
+            table_line.append([hint.标题, fmt(N.time, hint.时间, olddiff=False)])
+            report += f"- {hint.标题} ({fmt(N.time, hint.时间, olddiff=False)})\n"
             if hint.描述 is not None:
                 report += indent(hint.描述, "  ")
             report += "\n\n"
         return report, table_line
 
-    report_active, table_active = report_hints_flitered(flitered_hints)
+    report_active, table_active = report_hints_category(category_hints)
 
     report = ""
     if short:
