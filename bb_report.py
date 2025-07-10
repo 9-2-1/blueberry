@@ -239,7 +239,9 @@ def report_main_tasks(
                             f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
                         )
                     else:
-                        statuses.append(f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}")
+                        statuses.append(
+                            f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}"
+                        )
                 else:
                     if task.总数 is not None:
                         statuses.append(
@@ -368,8 +370,7 @@ def report_todo_tasks(
                 if changed:
                     category__ = category_cancel
         elif todo.名称 in N.stats.其他任务生效:
-            if changed:
-                category__ = category_done
+            category__ = category_done
         elif todo.完成 is not None:
             if changed:
                 category__ = category_expire
