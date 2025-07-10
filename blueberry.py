@@ -48,7 +48,7 @@ def main() -> None:
         "-c", "--change-only", action="store_true", help="只显示变化的部分"
     )
     parser.add_argument(
-        "-p", "--diff", action="store_true", help="显示 新(±变化) 格式，不用 旧→新 格式"
+        "-p", "--diff", action="store_false", help="显示 旧→新 格式，不用 新(±变化) 格式"
     )
     parser.add_argument(
         "-n", "--nologging", action="store_true", help="不保存报告为文件"
@@ -124,9 +124,8 @@ def main() -> None:
     report += report_hints(
         now_data,
         prev_data,
-        change_only=args.change_only,
+        change_only=args.change_only or args.short,
         verbose=args.verbose,
-        short=args.short,
     )
 
     if args.shownote:
