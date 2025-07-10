@@ -316,8 +316,8 @@ def report_main_tasks(
         report += report_done
         report += report_expire
     if Y is not None:
-        if P is not None:
-            report += f"今日用时: {fmt(p今日用时, n今日用时)}\n\n"
+        if P is not None and P.time != Y.time:
+            report += f"今日用时: {fmt(p今日用时, n今日用时, olddiff=olddiff)}\n\n"
         else:
             report += f"今日用时: {fmt(n今日用时)}\n\n"
     if report.strip() == "":
