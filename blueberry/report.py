@@ -102,7 +102,7 @@ def report_head(
 ) -> str:
     report = "blueberry 报告\n"
     if P is not None:
-        report += f"时间:{fmt(P.time, N.time, olddiff=False)}\n"
+        report += f"时间:{fmt(P.time, N.time, olddiff=True)}\n"
         if short:
             # 短格式
             report += (
