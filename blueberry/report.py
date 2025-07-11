@@ -535,8 +535,9 @@ def report_statuses(
             status = N.state.状态[status_name]
             t点数 = status.点数 if status.点数 is not None else 0
             statuses = []
-            p点数 = 0
+            p点数 = t点数
             if P is not None:
+                p点数 = 0
                 pstatus = P.state.状态.get(status_name)
                 if pstatus != status:
                     verbose_str += f"  | 更新于{fmt(N.time - status.时间)}前\n"
