@@ -168,7 +168,6 @@ def report_main_tasks(
         for task in N.state.任务.values():
             tstat = N.stats.任务统计[task.名称]
             ystat = Y.stats.任务统计.get(task.名称)
-            y进度 = ystat.进度 if ystat is not None else 0
             y用时 = ystat.用时 if ystat is not None else timedelta(0)
             n今日用时 += tstat.用时 - y用时
             if P is not None:
@@ -323,13 +322,14 @@ def report_main_tasks(
         report += report_upcoming
         report += report_done
         report += report_expire
+    if report.strip() == "":
+        # 如果没有内容，不显示每日用时。
+        return ""
     if Y is not None:
         if P is not None and P.time != Y.time:
             report += f"今日用时: {fmt(p今日用时, n今日用时, olddiff=olddiff)}\n\n"
         else:
             report += f"今日用时: {fmt(n今日用时)}\n\n"
-    if report.strip() == "":
-        return ""
     return "-- 主要任务 --\n" + report
 
 

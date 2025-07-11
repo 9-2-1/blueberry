@@ -74,9 +74,6 @@ def workdays(begin: datetime, end: datetime, worktime: list[WorktimeModel]) -> f
     begin_date = begin.date()
     end_date = end.date()
 
-    begin_time = begin.time()
-    end_time = end.time()
-
     datediff = (end_date - begin_date) / timedelta(days=1)
 
     begin_time_day = workday_time(begin, worktime)
