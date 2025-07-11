@@ -1,0 +1,1 @@
+@call blueberry-default.cmd -v
