@@ -12,6 +12,9 @@ from bb_config import 推荐用时
 class TaskSpeed:
     速度: float  # per hour
     每日用时: timedelta
+    tot_time: timedelta
+    tot_dayspan: float
+    tot_progress: float
 
 
 @dataclass
@@ -127,9 +130,17 @@ def calculate_speed(
     if old_progress == new_progress or tot_time == timedelta(0):
         # bad condition
         return None
-    速度 = (new_progress - old_progress) / (tot_time / timedelta(hours=1))
-    每日用时 = tot_time / workdays(old_time, new_time, worktime)
-    return TaskSpeed(速度=速度, 每日用时=每日用时)
+    tot_dayspan = workdays(old_time, new_time, worktime)
+    tot_progress = new_progress - old_progress
+    速度 = tot_progress / (tot_time / timedelta(hours=1))
+    每日用时 = tot_time / tot_dayspan
+    return TaskSpeed(
+        速度=速度,
+        每日用时=每日用时,
+        tot_time=tot_time,
+        tot_dayspan=tot_dayspan,
+        tot_progress=tot_progress,
+    )
 
 
 def statistic(now_state: State, now_time: datetime) -> StateStats:
