@@ -101,37 +101,48 @@ def calculate_speed(
     worktime: list[WorktimeModel],
 ) -> TaskSpeed | None:
     # 近期记录
-    MIN_TIME = timedelta(hours=2)
-    MIN_TIMESPAN = 3
-    new_time = now_time
+    MIN_TOT_TIME = timedelta(hours=2)
+    MIN_TOT_DAYSPAN = 3  # workdays
+    tot_progress = 0.0
     tot_time = timedelta(0)
-    new_progress = progress[-1].进度
-    found = False
-    count = 0
+    tot_dayspan = workdays(progress[-1].时间, now_time, worktime)  # workdays: float
     # 这里需要注意时间的计算方式：
     # 进度记录描述的是 “花费‘用时’时间后，在‘时间’让进度达到了‘进度’”。
     # 选择“开始的记录”后“开始的记录”本身的时间不包含在总时间内（那是起点）
-    for p in reversed(progress):
-        old_time = p.时间
-        if (
-            tot_time > MIN_TIME
-            and workdays(old_time, new_time, worktime) > MIN_TIMESPAN
-        ):
-            found = True
-            old_progress = p.进度
+    for i in reversed(range(len(progress))):
+        add_progress = (
+            progress[i].进度 - progress[i - 1].进度 if i != 0 else progress[i].进度
+        )
+        add_time = progress[i].用时
+        prev_node_time = progress[i - 1].时间 if i != 0 else begin_time
+        add_dayspan = workdays(prev_node_time, progress[i].时间, worktime)
+        if add_dayspan < 0:
+            add_dayspan = 0
+        add_ratio = 0.0
+        if tot_time >= MIN_TOT_TIME:
+            pass
+        elif tot_time + add_time <= MIN_TOT_TIME:
+            add_ratio = 1.0
+        else:
+            k = (MIN_TOT_TIME - tot_time) / add_time
+            if add_ratio < k:
+                add_ratio = k
+        if tot_dayspan >= MIN_TOT_DAYSPAN:
+            pass
+        elif tot_dayspan + add_dayspan <= MIN_TOT_DAYSPAN:
+            add_ratio = 1.0
+        else:
+            k = (MIN_TOT_DAYSPAN - tot_dayspan) / add_dayspan
+            if add_ratio < k:
+                add_ratio = k
+        tot_time += add_time * add_ratio
+        tot_dayspan += add_dayspan * add_ratio
+        tot_progress += add_progress * add_ratio
+        if add_ratio < 1.0:
             break
-        tot_time += p.用时
-        if p.用时 != timedelta(0):
-            count += 1
-    if not found:
-        if begin_time < old_time:
-            old_time = begin_time
-        old_progress = 0.0
-    if old_progress == new_progress or tot_time == timedelta(0):
+    if tot_progress == 0 or tot_time == timedelta(0):
         # bad condition
         return None
-    tot_dayspan = workdays(old_time, new_time, worktime)
-    tot_progress = new_progress - old_progress
     速度 = tot_progress / (tot_time / timedelta(hours=1))
     每日用时 = tot_time / tot_dayspan
     return TaskSpeed(
