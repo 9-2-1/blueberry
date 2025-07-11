@@ -108,22 +108,18 @@ def report_head(
             report += (
                 f"点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
             )
-            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff)},"
-            report += f"{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff)},"
+            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)},"
             report += (
-                f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff)})"
+                f"{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)},"
             )
+            report += f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})"
             report += f" 日均:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
         else:
             # 普通格式
             report += f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
-            report += (
-                f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff)}"
-            )
-            report += (
-                f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff)}"
-            )
-            report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff)})\n"
+            report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)}"
+            report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)}"
+            report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})\n"
             report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
     else:
         report += f"时间:{fmt(N.time)}\n"
@@ -228,7 +224,7 @@ def report_main_tasks(
                 p点数 = (
                     pstat.点数 if pstat is not None and pstat.点数 is not None else 0
                 )
-                point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
+                point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
                 if ptask != task:
                     verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
                 if Y is None:
@@ -249,7 +245,7 @@ def report_main_tasks(
                     else:
                         statuses.append(f"完成{fmt(tstat.进度)}")
             else:
-                point_str = f"{fmt(t点数)}"
+                point_str = f"点数{fmt(t点数, pos=True)}"
                 if task.总数 is not None:
                     statuses.append(
                         f"完成{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
@@ -286,7 +282,7 @@ def report_main_tasks(
             else:
                 statuses.append(f"{fmt(task.结束 - N.time, pos=True)}到期")
             statuses.append(tstat.进度描述 if tstat.进度描述 is not None else "")
-            table_line.append([title, point_str, task.标题, *statuses])
+            table_line.append([f"[{point_str}]", title, task.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
             if statuses:
                 status_str = "(" + ",".join(statuses) + ")"
@@ -404,11 +400,11 @@ def report_todo_tasks(
                     verbose_str += f"  | 更新于{fmt(N.time - todo.时间)}前\n"
                 p点数 = ptodo.点数 if ptodo is not None else 0
                 if p点数 != t点数:
-                    point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
+                    point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
                 else:
-                    point_str = f"{fmt(t点数)}"
+                    point_str = f"点数{fmt(t点数, pos=True)}"
             else:
-                point_str = f"{fmt(t点数)}"
+                point_str = f"点数{fmt(t点数, pos=True)}"
             if todo.标记 == "+":
                 mode = "可选"
             elif todo.标记 == "-":
@@ -436,7 +432,7 @@ def report_todo_tasks(
                 if todo.完成 is not None:
                     verbose_str += f" 完成:{fmt(N.time, todo.完成, olddiff=False)}"
                 verbose_str += "\n"
-            table_line.append([title, mode, point_str, todo.标题, *statuses])
+            table_line.append([f"[{point_str}]", title, mode, todo.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
             if statuses:
                 status_str = "(" + ",".join(statuses) + ")"
@@ -544,9 +540,9 @@ def report_statuses(
                 if pstatus is not None and pstatus.点数 is not None:
                     p点数 = pstatus.点数
             if p点数 != t点数:
-                point_str = f"{fmt(p点数, t点数, olddiff=olddiff)}"
+                point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
             else:
-                point_str = f"{fmt(t点数)}"
+                point_str = f"点数{fmt(t点数, pos=True)}"
             if status.开始 is not None and N.time < status.开始:
                 statuses.append(f"{fmt(N.time - status.开始, pos=True)}开始")
             elif status.结束 is not None:
@@ -560,7 +556,7 @@ def report_statuses(
                 if status.结束 is not None:
                     verbose_str += f" 结束:{fmt(N.time, status.结束, olddiff=False)}"
                 verbose_str += "\n"
-            table_line.append([title, point_str, status.标题, *statuses])
+            table_line.append([f"[{point_str}]", title, status.标题, *statuses])
             statuses = [x for x in statuses if x != ""]
             if statuses:
                 status_str = "(" + ",".join(statuses) + ")"
