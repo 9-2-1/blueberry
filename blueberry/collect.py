@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from bb_models import (
+from .models import (
     AppendOnlyModel,
     DeleteModel,
     TaskModel,
@@ -13,7 +13,7 @@ from bb_models import (
     WorktimeModel,
 )
 
-from bb_parser import Data
+from .parser import Data
 
 
 class State(BaseModel):

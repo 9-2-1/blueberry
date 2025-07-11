@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, time as datetime_time
 import math
 
-from bb_models import WorktimeModel, ProgressModel
-from bb_collect import State
-from bb_config import 推荐用时
+from .models import WorktimeModel, ProgressModel
+from .collect import State
+from .config import 推荐用时
 
 
 @dataclass

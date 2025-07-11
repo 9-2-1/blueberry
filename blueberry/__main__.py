@@ -2,11 +2,11 @@ from datetime import datetime
 import os
 import argparse
 
-from bb_parser import load_data
-from bb_collect import collect_state
-from bb_statistic import statistic
-from bb_webserver import live_server
-from bb_report import (
+from .parser import load_data
+from .collect import collect_state
+from .statistic import statistic
+from .webserver import live_server
+from .report import (
     report_head,
     report_main_tasks,
     report_todo_tasks,

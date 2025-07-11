@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from openpyxl import load_workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from bb_models import (
+from .models import (
     AppendOnlyModel,
     DeleteModel,
     TaskModel,

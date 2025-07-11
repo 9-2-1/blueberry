@@ -8,9 +8,9 @@ import wcwidth  # type: ignore
 # 用于tabulate的宽度计算
 from tabulate import tabulate
 
-from bb_models import HintModel
-from bb_collect import State
-from bb_statistic import StateStats
+from .models import HintModel
+from .collect import State
+from .statistic import StateStats
 
 FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
 

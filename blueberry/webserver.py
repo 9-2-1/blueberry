@@ -1,10 +1,10 @@
 from datetime import datetime
 import aiohttp.web
 
-from bb_parser import load_data
-from bb_collect import collect_state
-from bb_statistic import statistic
-from bb_report import fmt
+from .parser import load_data
+from .collect import collect_state
+from .statistic import statistic
+from .report import fmt
 
 
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
