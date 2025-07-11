@@ -64,11 +64,10 @@ def fmt(
                         sign = "+"
                 v = x
             else:
-                if pos:
-                    if timesign:
-                        sign = "前"
-                    else:
-                        sign = "-"
+                if timesign:
+                    sign = "前"
+                else:
+                    sign = "-"
                 v = -x
             if v > timedelta(days=7):
                 vstr = f"{v // timedelta(days=1)}天"
@@ -281,7 +280,7 @@ def report_main_tasks(
                 verbose_str += f"  | 最近完成:{fmt(tstat.速度.tot_progress)} 采样用时:{fmt(tstat.速度.tot_time)} 采样工作天数:{fmt(tstat.速度.tot_dayspan)}天\n"
                 verbose_str += f"  | 速度:{fmt(tstat.速度.速度)}/小时 每日平均用时:{fmt(tstat.速度.每日用时)}\n"
             if tstat.预计 is not None:
-                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距, timesign=False)}\n"
+                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距, timesign=False, pos=True)}\n"
             if is_upcoming:
                 statuses.append(f"{fmt(task.开始 - N.time, pos=True)}开始")
             else:
