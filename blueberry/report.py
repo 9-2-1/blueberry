@@ -420,7 +420,7 @@ def report_todo_tasks(
             if not is_finished:
                 point_str = f"预计{point_str}"
             if todo.完成 is not None and N.time >= todo.完成:
-                statuses.append(f"{fmt(todo.完成 - N.time, pos=True)}前完成")
+                statuses.append(f"{fmt(todo.完成 - N.time, pos=True)}完成")
             elif todo.开始 is not None and N.time < todo.开始:
                 statuses.append(f"{fmt(todo.开始 - N.time, pos=True)}开始")
             elif todo.结束 is not None:
