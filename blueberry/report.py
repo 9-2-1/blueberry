@@ -640,3 +640,14 @@ def report_hints(
     if report.strip() == "":
         return ""
     return "-- 提示 --\n" + report
+
+
+def report_worktime(N: ReportData) -> str:
+    worktime = N.state.工作时段
+    if not worktime:
+        return "未设置工作时段。"
+    report = "工作时段:"
+    for workt in worktime:
+        report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}→{workt.结束.hour:02d}:{workt.结束.minute:02d}"
+    report += "\n\n"
+    return report

@@ -8,6 +8,7 @@ from .statistic import statistic
 from .webserver import live_server
 from .report import (
     report_head,
+    report_worktime,
     report_main_tasks,
     report_todo_tasks,
     report_statuses,
@@ -101,6 +102,7 @@ def main() -> None:
 
     report = ""
     report += report_head(now_data, prev_data, short=args.short, olddiff=args.olddiff)
+    report += report_worktime(now_data)
 
     report += report_main_tasks(
         now_data,
