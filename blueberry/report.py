@@ -8,6 +8,7 @@ import wcwidth  # type: ignore
 # 用于tabulate的宽度计算
 from tabulate import tabulate
 
+from .config import 推荐用时
 from .models import HintModel
 from .collect import State
 from .statistic import StateStats
@@ -98,46 +99,51 @@ class ReportData:
 
 
 def report_head(
-    N: ReportData, P: ReportData | None, *, short: bool = False, olddiff: bool = True
+    N: ReportData,
+    P: ReportData | None,
+    Y: ReportData | None = None,
+    *,
+    olddiff: bool = True,
 ) -> str:
-    report = "blueberry 报告\n"
+    report = ""
     if P is not None:
         report += f"时间:{fmt(P.time, N.time, olddiff=True)}\n"
-        if short:
-            # 短格式
-            report += (
-                f"点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
-            )
-            report += f"({fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)},"
-            report += (
-                f"{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)},"
-            )
-            report += f"{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})"
-            report += f" 日均:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
+        # 普通格式
+        if Y is not None:
+            report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
+            if P.time != Y.time:
+                report += f"今日:{fmt(P.stats.Goldie点数 - Y.stats.Goldie点数, N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True, olddiff=olddiff)} "
+            else:
+                report += (
+                    f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
+                )
         else:
-            # 普通格式
             report += f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
-            report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)}"
-            report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)}"
-            report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})\n"
-            report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}\n"
+        report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)}"
+        report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)}"
+        report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})\n"
+        report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}"
     else:
         report += f"时间:{fmt(N.time)}\n"
-        if short:
-            # 短对比格式
-            report += f"点数:{fmt(N.stats.Goldie点数)} "
-            report += f"({fmt(N.stats.任务点数)},"
-            report += f"{fmt(N.stats.状态点数)},"
-            report += f"{fmt(N.stats.其他任务点数)})"
-            report += f" 日均:{fmt(N.stats.总每日用时)}\n"
-        else:
-            # 普通对比格式
-            report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
-            report += f"(任务:{fmt(N.stats.任务点数)}"
-            report += f" 状态:{fmt(N.stats.状态点数)}"
-            report += f" 其他:{fmt(N.stats.其他任务点数)})\n"
-            report += f"近期平均每日用时:{fmt(N.stats.总每日用时)}\n"
-    return report + "\n"
+        # 普通对比格式
+        report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
+        if Y is not None:
+            report += f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
+        report += f"(任务:{fmt(N.stats.任务点数)}"
+        report += f" 状态:{fmt(N.stats.状态点数)}"
+        report += f" 其他:{fmt(N.stats.其他任务点数)})\n"
+        report += f"近期平均每日用时:{fmt(N.stats.总每日用时)}"
+    return report
+
+
+def report_worktime(N: ReportData) -> str:
+    worktime = N.state.工作时段
+    if not worktime:
+        return "未设置工作时段。"
+    report = "工作时段:"
+    for workt in worktime:
+        report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}→{workt.结束.hour:02d}:{workt.结束.minute:02d}"
+    return report.strip()
 
 
 def report_main_tasks(
@@ -148,6 +154,7 @@ def report_main_tasks(
     short: bool = False,
     olddiff: bool = True,
     change_only: bool = False,
+    minor_change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
 ) -> str:
@@ -155,24 +162,11 @@ def report_main_tasks(
     category_running: list[str] = []  # 包括超时任务
     category_done: list[str] = []
     category_expire: list[str] = []
-    n今日用时 = timedelta(0)
-    p今日用时 = timedelta(0)
-    if Y is not None:
-        if P is not None and N.time.date() != P.time.date():
-            raise ValueError("不能对比不在同一天的每日进度")
-        for task in N.state.任务.values():
-            tstat = N.stats.任务统计[task.名称]
-            ystat = Y.stats.任务统计.get(task.名称)
-            y用时 = ystat.用时 if ystat is not None else timedelta(0)
-            n今日用时 += tstat.用时 - y用时
-            if P is not None:
-                pstat = P.stats.任务统计.get(task.名称)
-                p用时 = pstat.用时 if pstat is not None else timedelta(0)
-                p今日用时 += p用时 - y用时
     for task in N.state.任务.values():
         # change_only category
         tstat = N.stats.任务统计[task.名称]
         changed = False
+        minor_changed = False
         if P is not None:
             ptask = P.state.任务.get(task.名称)
             if ptask != task:
@@ -180,13 +174,13 @@ def report_main_tasks(
             else:
                 pstat = P.stats.任务统计[task.名称]
                 if pstat.进度 != tstat.进度:
-                    changed = True
+                    minor_changed = True
                 elif pstat.用时 != tstat.用时:
-                    changed = True
+                    minor_changed = True
                 elif P.time < task.开始 <= N.time:
-                    changed = True
+                    minor_changed = True
                 elif P.time < task.结束 <= N.time:
-                    changed = True
+                    minor_changed = True
         category__ = None
         if task.总数 is not None and tstat.进度 >= task.总数:
             if N.time >= task.结束:
@@ -199,7 +193,11 @@ def report_main_tasks(
         elif upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
             category__ = category_upcoming
         if category__ is not None:
-            if not change_only or changed:
+            if (
+                (change_only and changed)
+                or (minor_change_only and minor_changed)
+                or not (change_only or minor_change_only)
+            ):
                 category__.append(task.名称)
 
     def report_main_tasks_category(
@@ -224,10 +222,10 @@ def report_main_tasks(
                 p点数 = (
                     pstat.点数 if pstat is not None and pstat.点数 is not None else 0
                 )
-                point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
                 if ptask != task:
                     verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
                 if Y is None:
+                    point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
                     if task.总数 is not None:
                         statuses.append(
                             f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
@@ -238,6 +236,7 @@ def report_main_tasks(
                         )
                     statuses.append(f"用时{fmt(tstat.用时 - p用时)}")
                 else:
+                    point_str = f"点数{fmt(t点数, pos=True)}"
                     if task.总数 is not None:
                         statuses.append(
                             f"完成{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
@@ -257,19 +256,31 @@ def report_main_tasks(
                 ystat = Y.stats.任务统计.get(task_name)
                 y进度 = ystat.进度 if ystat is not None else 0
                 y用时 = ystat.用时 if ystat is not None else timedelta(0)
+                y点数 = (
+                    ystat.点数 if ystat is not None and ystat.点数 is not None else 0
+                )
                 if P is not None and P.time != Y.time:
                     pstat = P.stats.任务统计.get(task_name)
                     p进度 = pstat.进度 if pstat is not None else 0
                     p用时 = pstat.用时 if pstat is not None else timedelta(0)
-                    statuses.append(
-                        f"今日{fmt(p进度 - y进度, tstat.进度 - y进度, pos=True, olddiff=olddiff)}"
+                    p点数 = (
+                        pstat.点数
+                        if pstat is not None and pstat.点数 is not None
+                        else 0
                     )
                     statuses.append(
-                        f"{fmt(p用时 - y用时, tstat.用时 - y用时, olddiff=olddiff, timesign=False)}"
+                        f"今日:点数{fmt(p点数 - y点数, t点数 - y点数, pos=True, olddiff=olddiff)}"
+                    )
+                    statuses.append(
+                        f"完成{fmt(p进度 - y进度, tstat.进度 - y进度, olddiff=olddiff)}"
+                    )
+                    statuses.append(
+                        f"用时{fmt(p用时 - y用时, tstat.用时 - y用时, olddiff=olddiff, timesign=False)}"
                     )
                 else:
-                    statuses.append(f"今日{fmt(tstat.进度 - y进度, pos=True)}")
-                    statuses.append(f"{fmt(tstat.用时 - y用时, timesign=False)}")
+                    statuses.append(f"今日:点数{fmt(t点数 - y点数, pos=True)}")
+                    statuses.append(f"完成{fmt(tstat.进度 - y进度)}")
+                    statuses.append(f"用时{fmt(tstat.用时 - y用时, timesign=False)}")
 
             verbose_str += f"  | 开始:{fmt(N.time, task.开始, olddiff=False)} 结束:{fmt(N.time, task.结束, olddiff=False)}\n"
             if tstat.速度 is not None:
@@ -318,15 +329,38 @@ def report_main_tasks(
         report += report_upcoming
         report += report_done
         report += report_expire
-    if report.strip() == "":
-        # 如果没有内容，不显示每日用时。
-        return ""
+    return report.strip()
+
+
+def report_daily_time(
+    N: ReportData,
+    P: ReportData | None,
+    Y: ReportData | None,
+    *,
+    olddiff: bool = False,
+) -> str:
+    n今日用时 = timedelta(0)
+    p今日用时 = timedelta(0)
+    if Y is not None:
+        if P is not None and N.time.date() != P.time.date():
+            raise ValueError("不能对比不在同一天的每日进度")
+        for task in N.state.任务.values():
+            tstat = N.stats.任务统计[task.名称]
+            ystat = Y.stats.任务统计.get(task.名称)
+            y用时 = ystat.用时 if ystat is not None else timedelta(0)
+            n今日用时 += tstat.用时 - y用时
+            if P is not None:
+                pstat = P.stats.任务统计.get(task.名称)
+                p用时 = pstat.用时 if pstat is not None else timedelta(0)
+                p今日用时 += p用时 - y用时
     if Y is not None:
         if P is not None and P.time != Y.time:
-            report += f"今日用时: {fmt(p今日用时, n今日用时, olddiff=olddiff)}\n\n"
+            report = f"今日用时: {fmt(p今日用时, n今日用时, olddiff=olddiff)} (推荐时长的 {n今日用时 / 推荐用时:.0%})"
         else:
-            report += f"今日用时: {fmt(n今日用时)}\n\n"
-    return "-- 主要任务 --\n" + report
+            report = (
+                f"今日用时: {fmt(n今日用时)} (推荐时长的 {n今日用时 / 推荐用时:.0%})"
+            )
+    return report.strip()
 
 
 def report_todo_tasks(
@@ -335,6 +369,7 @@ def report_todo_tasks(
     *,
     short: bool = False,
     change_only: bool = False,
+    minor_change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
     olddiff: bool = False,
@@ -346,18 +381,19 @@ def report_todo_tasks(
     category_cancel: list[str] = []
     for todo in N.state.待办事项.values():
         changed = False
+        minor_changed = False
         if P is not None:
             ptodo = P.state.待办事项.get(todo.名称)
             if ptodo != todo:
                 changed = True
             elif todo.开始 is not None and P.time < todo.开始 <= N.time:
-                changed = True
+                minor_changed = True
             elif todo.结束 is not None and P.time < todo.结束 <= N.time:
-                changed = True
+                minor_changed = True
             elif (todo.名称 in N.stats.其他任务生效) != (
                 todo.名称 in P.stats.其他任务生效
             ):
-                changed = True
+                minor_changed = True
         category__ = None
         if todo.标记 is None:
             if P is not None:
@@ -375,14 +411,15 @@ def report_todo_tasks(
         ):
             category__ = category_upcoming
         if category__ is not None:
-            if not change_only or changed:
+            if (
+                (change_only and changed)
+                or (minor_change_only and minor_changed)
+                or not (change_only or minor_change_only)
+            ):
                 category__.append(todo.名称)
 
     def report_todo_tasks_category(
-        title: str,
-        todo_names: list[str],
-        *,
-        is_finished: bool = False,
+        title: str, todo_names: list[str], *, is_finished: bool = False
     ) -> tuple[str, list[list[str]]]:
         if not todo_names:
             return "", []
@@ -475,9 +512,7 @@ def report_todo_tasks(
         report += report_done
         report += report_cancel
         report += report_expire
-    if report.strip() == "":
-        return ""
-    return "-- 待办事项 --\n" + report
+    return report.strip()
 
 
 def report_statuses(
@@ -486,6 +521,7 @@ def report_statuses(
     *,
     short: bool = False,
     change_only: bool = False,
+    minor_change_only: bool = False,
     upcoming: float | None = None,
     verbose: bool = False,
     olddiff: bool = False,
@@ -495,14 +531,15 @@ def report_statuses(
     category_expire: list[str] = []
     for status in N.state.状态.values():
         changed = False
+        minor_changed = False
         if P is not None:
             pstatus = P.state.状态.get(status.名称)
             if pstatus != status:
-                changed = True
+                minor_changed = True
             elif status.开始 is not None and P.time < status.开始 <= N.time:
-                changed = True
+                minor_changed = True
             elif status.结束 is not None and P.time < status.结束 <= N.time:
-                changed = True
+                minor_changed = True
         category__ = None
         if status.点数 is None or (status.结束 is not None and N.time >= status.结束):
             if changed:
@@ -514,12 +551,15 @@ def report_statuses(
         ):
             category__ = category_upcoming
         if category__ is not None:
-            if not change_only or changed:
+            if (
+                (change_only and changed)
+                or (minor_change_only and minor_changed)
+                or not (change_only or minor_change_only)
+            ):
                 category__.append(status.名称)
 
     def report_statuses_category(
-        title: str,
-        status_names: list[str],
+        title: str, status_names: list[str]
     ) -> tuple[str, list[list[str]]]:
         if not status_names:
             return "", []
@@ -582,21 +622,18 @@ def report_statuses(
         table_line.extend(table_active)
         table_line.extend(table_upcoming)
         table_line.extend(table_expire)
-        report += tabulate(table_line, tablefmt="plain") + "\n\n"
+        report += tabulate(table_line, tablefmt="plain")
     else:
         report += report_active
         report += report_upcoming
         report += report_expire
-    if report.strip() == "":
-        return ""
-    return "-- 状态 --\n" + report
+    return report.strip()
 
 
 def report_hints(
     N: ReportData,
     P: ReportData | None,
     *,
-    short: bool = False,
     change_only: bool = False,
     verbose: bool = False,
 ) -> str:
@@ -610,44 +647,21 @@ def report_hints(
         if P is not None:
             if hints.时间 and P.time < hints.时间 <= N.time:
                 changed = True
-        if not change_only or changed:
+        if (change_only and changed) or not change_only:
             if verbose or hints.时间 >= N.time - MIN_TIME or counts < MIN_HINTS:
                 counts += 1
                 category_hints.append(hints)
 
-    def report_hints_category(
-        hints: list[HintModel],
-    ) -> tuple[str, list[list[str]]]:
+    def report_hints_category(hints: list[HintModel]) -> str:
         if not hints:
-            return "", []
+            return ""
         report = ""
-        table_line: list[list[str]] = []
         for hint in hints:
-            table_line.append([hint.标题, fmt(N.time, hint.时间, olddiff=False)])
             report += f"- {hint.标题} ({fmt(N.time, hint.时间, olddiff=False)})\n"
             if hint.描述 is not None:
                 report += indent(hint.描述, "  ")
             report += "\n\n"
-        return report, table_line
+        return report
 
-    report_active, table_active = report_hints_category(category_hints)
-
-    report = ""
-    if short:
-        report += tabulate(table_active, tablefmt="plain") + "\n\n"
-    else:
-        report += report_active
-    if report.strip() == "":
-        return ""
-    return "-- 提示 --\n" + report
-
-
-def report_worktime(N: ReportData) -> str:
-    worktime = N.state.工作时段
-    if not worktime:
-        return "未设置工作时段。"
-    report = "工作时段:"
-    for workt in worktime:
-        report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}→{workt.结束.hour:02d}:{workt.结束.minute:02d}"
-    report += "\n\n"
-    return report
+    report = report_hints_category(category_hints)
+    return report.strip()

@@ -1,1 +1,1 @@
-@call blueberry-default.cmd -D -C
+@call blueberry.cmd -c -d
