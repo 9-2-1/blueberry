@@ -275,7 +275,7 @@ def main() -> None:
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:
             f.write(data.model_dump_json(indent=2))
-        with open(f"{args.output}.txt", "w", encoding="utf-8") as f:
+        with open(f"{args.output}", "w", encoding="utf-8") as f:
             f.write(report)
 
     print(report)
