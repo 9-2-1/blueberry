@@ -1,7 +1,8 @@
 *.swp
 *.un~
 .mypy_cache
-data
 blueberry.txt
+blueberry.txt.json
 记录.xlsx
+~$*.xlsx
 __pycache__

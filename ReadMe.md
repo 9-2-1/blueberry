@@ -26,20 +26,20 @@ Blueberry 是一个帮助跟踪任务进度和计算 Goldie 点数的工具，�
 ### 生成报告
 直接运行主程序生成任务报告：
 ```
-python blueberry.py
+python -m blueberry
 ```
-生成的报告会保存到 `data` 目录下，并在控制台显示。
+生成的报告会在控制台显示。
 
 ### 简化报告
 生成只包含关键信息的简化报告：
 ```
-python blueberry.py -s
+python -m blueberry -s
 ```
 
 ### 实时网页监控
 启动网页服务器实时查看点数变化：
 ```
-python blueberry.py -l
+python -m blueberry -l
 ```
 然后在浏览器中访问 http://localhost:26019
 **小心，默认监听0.0.0.0，这意味着局域网里的人可以通过扫描IP地址等技术方式找到这个网页服务，实时查看你的点数（不过他们不一定知道这是什么）**
@@ -48,22 +48,19 @@ python blueberry.py -l
 - `-l, --live`: 开启实时点数显示HTTP网页
 - `-f, --from`: 指定开始时间（格式：YYYY-MM-DDTHH:MM[:SS]）
 - `-t, --time`: 指定当前时间
-- `-d, --dayreport`: 显示当天报告
+- `-d, --daily`: 显示今日完成
+- `-f, --from`: 指定开始时间（格式：YYYY-MM-DDTHH:MM[:SS]）
+- `-t, --time, --to`: 指定当前时间（默认为现在）
 - `-w, --workbook`: 指定表格文件路径（默认：记录.xlsx）
+- `-c, --changes`: 只显示变化
+- `-d, --daily`: 显示今日完成
 - `-s, --short`: 生成简化报告
+- `-v, --verbose`: 详细格式
+- `-u, --upcoming-days`: 隐藏指定天数后开始的项目
+- `-D, --olddiff`: 使用旧→新格式，不用新(±变化)格式
+- `-I, --no-info`: 不显示说明
+- `-o, --output`: 输出文件路径
 - `-n, --nologging`: 不保存报告为文件
-
-## 项目结构
-- `blueberry.py`: 主程序文件
-- `blueberry.cmd`: Windows命令行启动脚本
-- `blueberry-web.cmd`: Web服务器启动脚本
-- `记录.xlsx`: 任务数据表格
-- `web/`: 网页前端文件
-  - `index.html`: 网页界面
-  - `script.js`: 前端交互逻辑
-  - `style.css`: 样式文件
-- `data/`: 报告和数据存储目录
-- `requirements.txt`: 项目依赖
 
 ## 点数计算说明
 Goldie点数综合考虑以下因素：
@@ -74,7 +71,11 @@ Goldie点数综合考虑以下因素：
 点数规则：
 - 大于0表示正常进行
 - 小于0意味着无法达到预期
-- 颜色标识：棕 < -500 < 红 < -200 < 黄 < 0 < 绿 < 200 < 天蓝 < 500 < 蓝
+- 颜色标识：红 < -500 < 橙 < -200 < 黄 < 0 < 绿 < 200 < 青 < 500 < 蓝
+
+## 隐藏机制说明
+- **工作时段计算**：仅在工作时段内计算预期可用时间和平均速度，休息时段点数不会自然下降
+- **推荐用时配置**：默认工作时长为6.5小时/天（8小时×80%工作-休息比），可在 `config.py` 中修改
 
 ## 数据文件格式
 任务数据存储在Excel表格（记录.xlsx）中。
