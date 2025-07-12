@@ -31,7 +31,7 @@ def main() -> None:
         "--workbook",
         action="store",
         default="记录.xlsx",
-        help="表格文件路径 (默认: 记录.xlsx)",
+        help="表格文件路径(默认: 记录.xlsx)",
     )
     # 时间
     parser.add_argument(
@@ -66,15 +66,8 @@ def main() -> None:
         action="store_true",
         help="使用 旧→新 格式，不用 新(±变化) 格式",
     )
-    parser.add_argument(
-        "-I",
-        "--no-info",
-        action="store_true",
-        help="不显示说明",
-    )
-    parser.add_argument(
-        "-n", "--no-logging", action="store_true", help="不保存报告为文件"
-    )
+    parser.add_argument("-I", "--no-info", action="store_true", help="不显示说明")
+    parser.add_argument("-o", "--output", action="store", help="输出文件路径")
     args = parser.parse_args()
 
     if args.live:
@@ -279,12 +272,10 @@ def main() -> None:
         with open("blueberry说明.txt", "r", encoding="utf-8") as g:
             report += g.read() + "\n\n"
 
-    if not args.no_logging:
-        if not os.path.exists("data"):
-            os.makedirs("data")
-        with open(f"data/{tmark}.json", "w", encoding="utf-8") as f:
+    if args.output is not None:
+        with open(f"{args.output}.json", "w", encoding="utf-8") as f:
             f.write(data.model_dump_json(indent=2))
-        with open(f"data/{tmark}.txt", "w", encoding="utf-8") as f:
+        with open(f"{args.output}.txt", "w", encoding="utf-8") as f:
             f.write(report)
 
     print(report)
