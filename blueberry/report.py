@@ -369,7 +369,7 @@ def report_todo_tasks(
         elif todo.名称 in N.stats.其他任务生效:
             category__ = category_done
         elif todo.完成 is not None:
-            if changed:
+            if changed or minor_changed:
                 category__ = category_expire
         elif todo.开始 is None or N.time >= todo.开始:
             category__ = category_running
@@ -509,7 +509,7 @@ def report_statuses(
                 minor_changed = True
         category__ = None
         if status.点数 is None or (status.结束 is not None and N.time >= status.结束):
-            if changed:
+            if changed or minor_changed:
                 category__ = category_expire
         elif status.开始 is None or N.time >= status.开始:
             category__ = category_active
