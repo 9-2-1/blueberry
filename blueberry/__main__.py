@@ -18,6 +18,7 @@ from .report import (
     report_hints,
     ReportData,
 )
+from .ctz_now import ctz_now
 
 
 def main() -> None:
@@ -31,8 +32,8 @@ def main() -> None:
         "-H",
         "--host",
         action="store",
-        default="0.0.0.0",
-        help="HTTP服务器IP(默认: 0.0.0.0)",
+        default="127.0.0.1",
+        help="HTTP服务器IP(默认: 127.0.0.1)",
     )
     parser.add_argument(
         "-P",
@@ -94,12 +95,11 @@ def main() -> None:
         return
 
     data = load_data(args.workbook)
-    tmark = datetime.now().strftime("%Y%m%d-%H%M%S")
 
     if args.time is not None:
         now_time = args.time
     else:
-        now_time = datetime.now()
+        now_time = ctz_now()
     yesterday_time = now_time.replace(hour=0, minute=0, second=0)
     if args.from_ is not None:
         prev_time = args.from_
