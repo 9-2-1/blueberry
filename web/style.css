@@ -15,7 +15,7 @@ body {
 
 @font-face {
   font-family: "Fira Mono";
-  src: url("/FiraMono.ttf");
+  src: url("FiraMono.ttf");
 }
 
 #app div {

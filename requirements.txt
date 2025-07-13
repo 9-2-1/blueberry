@@ -2,3 +2,5 @@ pydantic
 openpyxl
 aiohttp
 dateparser
+wcwidth
+tabulate
