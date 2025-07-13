@@ -55,6 +55,9 @@ def main() -> None:
     parser.add_argument("-c", "--changes", action="store_true", help="只显示变化")
     parser.add_argument("-d", "--daily", action="store_true", help="显示今日完成")
     parser.add_argument("-s", "--short", action="store_true", help="简单格式")
+    parser.add_argument(
+        "-S", "--short-and-changes", action="store_true", help="简单格式+主要变化"
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="详细格式")
     parser.add_argument(
         "-u", "--upcoming-days", type=float, help="隐藏 UPCOMING_DAYS 天后开始的项目"
@@ -110,6 +113,8 @@ def main() -> None:
         keyword += "详细"
     if args.changes:
         keyword += "变化"
+    elif args.short_and_changes:
+        keyword += "简单与主要变化"
     report = f"Blueberry {keyword}报告\n"
     report += (
         report_head(
@@ -123,7 +128,7 @@ def main() -> None:
     report += report_worktime(now_data) + "\n\n"
 
     report_main_tasks_strs: list[str] = []
-    if args.changes:
+    if args.changes or args.short_and_changes:
         report_main_tasks_strs.append(
             report_main_tasks(
                 now_data,
@@ -140,7 +145,7 @@ def main() -> None:
                 now_data,
                 prev_data,
                 yesterday_data if args.daily else None,
-                minor_change_only=True,
+                minor_change_only=not args.short_and_changes,
                 short=True,
                 upcoming=args.upcoming_days,
                 olddiff=args.olddiff,
@@ -176,7 +181,7 @@ def main() -> None:
         report += "\n\n".join(report_main_tasks_strs) + "\n\n"
 
     report_todo_tasks_strs: list[str] = []
-    if args.changes:
+    if args.changes or args.short_and_changes:
         report_todo_tasks_strs.append(
             report_todo_tasks(
                 now_data,
@@ -191,7 +196,7 @@ def main() -> None:
             report_todo_tasks(
                 now_data,
                 prev_data,
-                minor_change_only=True,
+                minor_change_only=not args.short_and_changes,
                 short=True,
                 upcoming=args.upcoming_days,
                 olddiff=args.olddiff,
@@ -219,7 +224,7 @@ def main() -> None:
     report_hints_str = report_hints(
         now_data,
         prev_data,
-        change_only=args.changes or args.short,
+        change_only=args.changes or args.short or args.short_and_changes,
         verbose=args.verbose,
     )
     if report_hints_str != "":
@@ -227,7 +232,7 @@ def main() -> None:
         report += report_hints_str + "\n\n"
 
     report_statuses_strs: list[str] = []
-    if args.changes:
+    if args.changes or args.short_and_changes:
         report_statuses_strs.append(
             report_statuses(
                 now_data,
@@ -242,7 +247,7 @@ def main() -> None:
             report_statuses(
                 now_data,
                 prev_data,
-                minor_change_only=True,
+                minor_change_only=not args.short_and_changes,
                 short=True,
                 upcoming=args.upcoming_days,
                 olddiff=args.olddiff,
@@ -267,7 +272,7 @@ def main() -> None:
             report += "-- 状态 --\n"
         report += "\n\n".join(report_statuses_strs) + "\n\n"
 
-    if not (args.short or args.changes or args.no_info):
+    if not (args.short or args.changes or args.short_and_changes or args.no_info):
         report += "-- 说明 --\n"
         with open("blueberry说明.txt", "r", encoding="utf-8") as g:
             report += g.read()
