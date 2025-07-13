@@ -115,7 +115,7 @@ def report_head(
         report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)}"
         report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)}"
         report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})\n"
-        report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)}"
+        report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
     else:
         report += f"时间:{fmt(N.time)}\n"
         # 普通对比格式
@@ -125,7 +125,7 @@ def report_head(
         report += f"(任务:{fmt(N.stats.任务点数)}"
         report += f" 状态:{fmt(N.stats.状态点数)}"
         report += f" 其他:{fmt(N.stats.其他任务点数)})\n"
-        report += f"近期平均每日用时:{fmt(N.stats.总每日用时)}"
+        report += f"近期平均每日用时:{fmt(N.stats.总每日用时)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
     return report
 
 

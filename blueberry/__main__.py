@@ -270,7 +270,7 @@ def main() -> None:
     if not (args.short or args.changes or args.no_info):
         report += "-- 说明 --\n"
         with open("blueberry说明.txt", "r", encoding="utf-8") as g:
-            report += g.read() + "\n\n"
+            report += g.read()
 
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:
@@ -278,7 +278,7 @@ def main() -> None:
         with open(f"{args.output}", "w", encoding="utf-8") as f:
             f.write(report)
 
-    print(report)
+    print(report, end="")
 
 
 if __name__ == "__main__":
