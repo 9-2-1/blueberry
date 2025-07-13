@@ -1,4 +1,5 @@
 /*! NoSleep.js v0.12.0 - git.io/vfn01 - Rich Tibbett - MIT license */
+// Modified: Native wakelock API disabled
 (function webpackUniversalModuleDefinition(root, factory) {
   if (typeof exports === "object" && typeof module === "object")
     module.exports = factory();
@@ -191,7 +192,9 @@
 
         // Detect native Wake Lock API support
         var nativeWakeLock = function nativeWakeLock() {
-          return "wakeLock" in navigator;
+          // [###] Modify: Intentionally disabled native wakelock api due to compatibility issue
+          return false;
+          // return "wakeLock" in navigator;
         };
 
         var NoSleep = (function () {
