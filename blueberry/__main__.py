@@ -38,6 +38,7 @@ def main() -> None:
         "-P",
         "--port",
         action="store",
+        type=int,
         default=26019,
         help="HTTP服务器端口(默认: 26019)",
     )
