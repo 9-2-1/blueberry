@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Union
 
 from pydantic import BaseModel
 
@@ -26,7 +27,7 @@ class State(BaseModel):
 
 
 def collect_lines(
-    lines: list[AppendOnlyModel | DeleteModel], now_time: datetime
+    lines: list[Union[AppendOnlyModel, DeleteModel]], now_time: datetime
 ) -> dict[str, AppendOnlyModel]:
     lines = sorted(lines, key=lambda x: x.时间)
     state: dict[str, AppendOnlyModel] = {}

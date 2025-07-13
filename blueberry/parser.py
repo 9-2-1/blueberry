@@ -1,4 +1,4 @@
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 from datetime import time as datetime_time
 import warnings
 
@@ -24,10 +24,10 @@ T = TypeVar("T")
 
 
 class Data(BaseModel):
-    任务: list[TaskModel | DeleteModel]
+    任务: list[Union[TaskModel, DeleteModel]]
     进度: list[ProgressModel]
-    状态: list[StatusModel | DeleteModel]
-    待办事项: list[TodoModel | DeleteModel]
+    状态: list[Union[StatusModel, DeleteModel]]
+    待办事项: list[Union[TodoModel, DeleteModel]]
     提示: list[HintModel]
     工作时段: list[WorktimeModel] = [
         WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
@@ -61,9 +61,9 @@ def parse_model_table(table: Worksheet, datatype: type[T]) -> list[T]:
 
 def parse_append_only_table(
     table: Worksheet, datatype: type[AppendOnlyModel]
-) -> list[AppendOnlyModel | DeleteModel]:
+) -> list[Union[AppendOnlyModel, DeleteModel]]:
     parsed_table = parse_table(table)
-    ret: list[AppendOnlyModel | DeleteModel] = []
+    ret: list[Union[AppendOnlyModel, DeleteModel]] = []
     for x in parsed_table:
         if set(x.keys()) == {"名称", "时间"}:
             ret.append(DeleteModel(**x))

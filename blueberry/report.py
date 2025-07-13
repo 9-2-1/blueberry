@@ -1,4 +1,4 @@
-from typing import TypeVar, overload
+from typing import TypeVar, overload, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from textwrap import indent
@@ -33,7 +33,7 @@ def fmt(
 
 def fmt(
     x: FmtT,
-    y: FmtT | None = None,
+    y: Optional[FmtT] = None,
     *,
     pos: bool = False,
     olddiff: bool = True,
@@ -100,8 +100,8 @@ class ReportData:
 
 def report_head(
     N: ReportData,
-    P: ReportData | None,
-    Y: ReportData | None = None,
+    P: Optional[ReportData],
+    Y: Optional[ReportData] = None,
     *,
     olddiff: bool = True,
 ) -> str:
@@ -141,14 +141,14 @@ def report_worktime(N: ReportData) -> str:
 
 def report_main_tasks(
     N: ReportData,
-    P: ReportData | None,
-    Y: ReportData | None = None,
+    P: Optional[ReportData],
+    Y: Optional[ReportData] = None,
     *,
     short: bool = False,
     olddiff: bool = True,
     change_only: bool = False,
     minor_change_only: bool = False,
-    upcoming: float | None = None,
+    upcoming: Optional[float] = None,
     verbose: bool = False,
 ) -> str:
     category_upcoming: list[str] = []
@@ -301,8 +301,8 @@ def report_main_tasks(
 
 def report_daily_time(
     N: ReportData,
-    P: ReportData | None,
-    Y: ReportData | None,
+    P: Optional[ReportData],
+    Y: Optional[ReportData],
     *,
     olddiff: bool = False,
 ) -> str:
@@ -332,12 +332,12 @@ def report_daily_time(
 
 def report_todo_tasks(
     N: ReportData,
-    P: ReportData | None,
+    P: Optional[ReportData],
     *,
     short: bool = False,
     change_only: bool = False,
     minor_change_only: bool = False,
-    upcoming: float | None = None,
+    upcoming: Optional[float] = None,
     verbose: bool = False,
     olddiff: bool = False,
 ) -> str:
@@ -484,12 +484,12 @@ def report_todo_tasks(
 
 def report_statuses(
     N: ReportData,
-    P: ReportData | None,
+    P: Optional[ReportData],
     *,
     short: bool = False,
     change_only: bool = False,
     minor_change_only: bool = False,
-    upcoming: float | None = None,
+    upcoming: Optional[float] = None,
     verbose: bool = False,
     olddiff: bool = False,
 ) -> str:
@@ -599,7 +599,7 @@ def report_statuses(
 
 def report_hints(
     N: ReportData,
-    P: ReportData | None,
+    P: Optional[ReportData],
     *,
     change_only: bool = False,
     verbose: bool = False,

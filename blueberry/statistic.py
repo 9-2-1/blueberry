@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 from dataclasses import dataclass
 from datetime import datetime, timedelta, time as datetime_time
 import math
@@ -29,11 +29,11 @@ class TaskStats:
     进度: float
     用时: timedelta
     标记: Literal["*", "-", "=", "!"]
-    进度描述: str | None = None
+    进度描述: Optional[str] = None
     # * 进行中 - 等待开始 = 已完成 ! 已超时
-    速度: TaskSpeed | None = None  # 开始的任务才能计算速度
-    预计: TaskEstimate | None = None  # 开始但未完成的任务才能估计完成时间
-    点数: int | None = (
+    速度: Optional[TaskSpeed] = None  # 开始的任务才能计算速度
+    预计: Optional[TaskEstimate] = None  # 开始但未完成的任务才能估计完成时间
+    点数: Optional[int] = (
         None  # 点数。到时未开始: -100 * 延后天数。已开始：100 * (时间差距 / 每日用时)。已结束：100 * 剩余天数
     )
 
@@ -99,7 +99,7 @@ def calculate_speed(
     begin_time: datetime,
     now_time: datetime,
     worktime: list[WorktimeModel],
-) -> TaskSpeed | None:
+) -> Optional[TaskSpeed]:
     # 近期记录
     MIN_TOT_TIME = timedelta(hours=2)
     MIN_TOT_DAYSPAN = 3  # workdays
