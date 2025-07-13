@@ -11,7 +11,7 @@ async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
     return aiohttp.web.FileResponse("web/index.html")
 
 
-def live_server(workbook: str) -> None:
+def live_server(workbook: str, host: str, port: int) -> None:
     async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
         data = load_data(workbook)
         now_time = datetime.now()
@@ -23,4 +23,4 @@ def live_server(workbook: str) -> None:
     app.add_routes([aiohttp.web.post("/get_points", get_points)])
     app.add_routes([aiohttp.web.get("/", index_html)])
     app.add_routes([aiohttp.web.static("/", "web")])
-    aiohttp.web.run_app(app, host="0.0.0.0", port=26019)
+    aiohttp.web.run_app(app, host=host, port=port)

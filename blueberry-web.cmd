@@ -1,1 +1,1 @@
-@call conda run --no-capture-output -n blueberry python -m blueberry -l || pause
+@call conda run --no-capture-output -n blueberry python -m blueberry -l -H 0.0.0.0 -P 26019 || pause

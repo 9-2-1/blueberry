@@ -1,8 +1,22 @@
+# vim
 *.swp
 *.un~
-.mypy_cache
+
+# report
 blueberry.txt
 blueberry.txt.json
+
+# record
 记录.xlsx
+
+# excel
 ~$*.xlsx
+
+# python
 __pycache__
+.mypy_cache
+
+# syncthing
+.stignore
+.stfolder
+.stversions
