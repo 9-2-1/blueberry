@@ -99,8 +99,6 @@ function updateBubble(bubble) {
   bubble.element.style.height = 20 / bubble.z + "px";
   bubble.element.style.width = 20 / bubble.z + "px";
   bubble.element.style.opacity = (50 * (ZMax - bubble.z)) / (ZMax - ZMin) + "%";
-
-  bubble.element.style.zIndex = -bubble.z;
 }
 
 function removeBubble(bubble) {
@@ -117,7 +115,6 @@ function animatePoints() {
     let point = g_point + ((now - g_time) * g_speed) / 1000;
     if (g_a_point === null) {
       g_a_point = point;
-      g_a_speed = 0.0;
     }
     g_a_point += (point - g_a_point) * 0.05;
     g_a_speed += (g_speed - g_a_speed) * 0.05;
