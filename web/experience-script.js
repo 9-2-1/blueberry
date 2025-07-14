@@ -6,6 +6,19 @@ let g_time = new Date();
 let g_a_point = null;
 let g_a_speed = 5;
 
+// Canvas相关全局变量
+let canvas, ctx;
+const colorMap = {
+  D: "rgb(255, 72, 72)",
+  C: "rgb(255, 144, 17)",
+  B: "rgb(239, 243, 0)",
+  A: "rgb(0, 226, 19)",
+  AA: "rgb(0, 227, 235)",
+  AAA: "rgb(0, 153, 255)",
+  default: "rgb(212, 212, 212)",
+};
+let g_currentColor = colorMap["default"];
+
 function updatePoints() {
   fetch("get_points_experience", { method: "get" })
     .then((response) => {
@@ -32,32 +45,38 @@ function updatePoints() {
 let g_bubbles = [];
 let prevTime = new Date();
 const ZMin = 0.7;
-const ZMax = 5;
-const ZDensity = 0.02;
+const ZMax = 4;
+const ZDensity = 0.005;
 let g_zaccomulate = ZMin - ZMax;
 // {x: number, y: number, z: number, element: HTMLElement}
 function backgroundBubbles() {
+  // 清除画布
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   // move bubbles by g_speed
   let deletions = [];
   let nowTime = new Date();
   let dtime = (nowTime - prevTime) / 1000;
   prevTime = nowTime;
   deltaZ = -g_a_speed * dtime;
+
   for (const bubble of g_bubbles) {
     bubble.z += deltaZ;
-    // remove bubbles that are out of screen
+    // 移除超出范围的气泡
     if (bubble.z > ZMax || bubble.z <= ZMin) {
-      removeBubble(bubble);
       deletions.push(bubble);
     } else {
-      updateBubble(bubble);
+      // 绘制气泡
+      drawBubble(bubble);
     }
   }
-  // remove deleted bubbles
+
+  // 移除删除的气泡
   for (const bubble of deletions) {
     g_bubbles.splice(g_bubbles.indexOf(bubble), 1);
   }
-  // add new bubbles on empty places
+
+  // 添加新气泡
   g_zaccomulate += deltaZ;
   if (g_zaccomulate > ZMax - ZMin) {
     g_zaccomulate = ZMax - ZMin;
@@ -65,6 +84,7 @@ function backgroundBubbles() {
   if (g_zaccomulate < ZMin - ZMax) {
     g_zaccomulate = ZMin - ZMax;
   }
+
   if (g_zaccomulate > 0) {
     for (let i = 0; i < Math.floor(g_zaccomulate / ZDensity); i++) {
       g_bubbles.push(createBubble(ZMin, ZMin + g_zaccomulate));
@@ -79,30 +99,28 @@ function backgroundBubbles() {
 }
 
 function createBubble(zMin, zMax) {
-  const element = document.createElement("div");
-  element.classList.add("bubble");
-  document.getElementById("bubbles").appendChild(element);
   let a = Math.random() * 2 * Math.PI;
-  let bubble = {
+  return {
     x: Math.cos(a),
     y: Math.sin(a),
     z: Math.random() * (zMax - zMin) + zMin,
-    element: element,
   };
-  updateBubble(bubble);
-  return bubble;
 }
 
-function updateBubble(bubble) {
-  bubble.element.style.left = 50 - (bubble.x * 50) / bubble.z + "%";
-  bubble.element.style.top = 50 - (bubble.y * 50) / bubble.z + "%";
-  bubble.element.style.height = 20 / bubble.z + "px";
-  bubble.element.style.width = 20 / bubble.z + "px";
-  bubble.element.style.opacity = (50 * (ZMax - bubble.z)) / (ZMax - ZMin) + "%";
-}
+function drawBubble(bubble) {
+  const size = 10 / bubble.z;
+  const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
+  const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
+  const opacity = (0.8 * (1 / ZMax - 1 / bubble.z)) / (1 / ZMax - 1 / ZMin);
 
-function removeBubble(bubble) {
-  document.getElementById("bubbles").removeChild(bubble.element);
+  const rgbValues = g_currentColor.match(/\d+/g);
+  const r = rgbValues[0],
+    g = rgbValues[1],
+    b = rgbValues[2];
+  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function animatePoints() {
@@ -131,6 +149,9 @@ function animatePoints() {
       }
     }
     document.getElementById("app").classList.add("status-" + rating);
+    g_currentColor = colorMap[rating];
+  } else {
+    g_currentColor = colorMap["default"];
   }
   backgroundBubbles();
   requestAnimationFrame(animatePoints);
@@ -153,6 +174,17 @@ function updateTime() {
 }
 
 window.onload = function () {
+  // 初始化Canvas
+  canvas = document.getElementById("bubbles");
+  ctx = canvas.getContext("2d");
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resizeCanvas();
+  window.addEventListener("resize", resizeCanvas);
+
   animatePoints();
   updatePoints();
   updateTime();
