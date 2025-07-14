@@ -15,9 +15,9 @@ for a, b, c in [
 ]:
     X.extend([a + (b - a) * x / c for x in range(c)])
 
-window = 20
+window = 10
 jump = 0.2
-W = [1 - x / window for x in range(window)]
+W = [1 / (x + 1) ** 0.5 for x in range(window)]
 D = [X[i] - X[i - 1] if i > 0 else 0 for i in range(len(X))]
 data_out: list[float] = []
 for i in range(0, window):

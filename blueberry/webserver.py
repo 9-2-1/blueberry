@@ -23,7 +23,7 @@ class Point(TypedDict):
 
 def smooth(X: list[float], jump: float) -> float:
     window = len(X)
-    W = [1 - x / window for x in range(window)]
+    W = [1 / (x + 1) ** 0.5 for x in range(window)]
     D = [X[i] - X[i - 1] if i > 0 else 0 for i in range(len(X))]
     for i in range(window):
         if abs(D[i]) > jump:
