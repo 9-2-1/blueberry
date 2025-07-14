@@ -142,7 +142,6 @@ def live_server(workbook: str, host: str, port: int) -> None:
     app.add_routes([aiohttp.web.get("/get_points_history", get_points_history)])
     app.add_routes([aiohttp.web.get("/get_points_experience", get_points_experience)])
     app.add_routes([aiohttp.web.get("/get_points", get_points)])
-    app.add_routes([aiohttp.web.post("/get_points", get_points)])
     app.add_routes([aiohttp.web.get("/", index_html)])
     app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host=host, port=port)

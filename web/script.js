@@ -1,7 +1,7 @@
 function updatePoints() {
   const point_thresholds = [-500, -200, 0, 200, 500];
   const rating_lists = ["D", "C", "B", "A", "AA", "AAA"];
-  fetch("get_points", { method: "post" })
+  fetch("get_points", { method: "get" })
     .then((response) => {
       if (response.status != 200) {
         throw new Error("获取失败");
