@@ -551,9 +551,9 @@ def report_statuses(
             else:
                 point_str = f"点数{fmt(t点数, pos=True)}"
             if status.开始 is not None and N.time < status.开始:
-                statuses.append(f"{fmt(N.time - status.开始, pos=True)}开始")
+                statuses.append(f"{fmt(status.开始 - N.time, pos=True)}开始")
             elif status.结束 is not None:
-                statuses.append(f"{fmt(N.time - status.结束, pos=True)}结束")
+                statuses.append(f"{fmt(status.结束 - N.time, pos=True)}结束")
             else:
                 statuses.append("")
             if status.开始 is not None or status.结束 is not None:
