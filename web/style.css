@@ -26,30 +26,71 @@ body {
   user-select: none;
   margin: 0;
   padding: 0;
+  transition: color 0.5s;
+}
+
+#app #bubbles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+#app .bubble {
+  position: absolute;
+  border-radius: 50%;
+  background-color: #d4d4d4;
+  transition: background-color 0.5s;
 }
 
 #app.status-D div {
   color: #ff4848;
 }
 
+#app.status-D .bubble {
+  background-color: #ff4848;
+}
+
 #app.status-C div {
   color: #ff9011;
+}
+
+#app.status-C .bubble {
+  background-color: #ff9011;
 }
 
 #app.status-B div {
   color: #eff300;
 }
 
+#app.status-B .bubble {
+  background-color: #eff300;
+}
+
 #app.status-A div {
   color: #00e213;
+}
+
+#app.status-A .bubble {
+  background-color: #00e213;
 }
 
 #app.status-AA div {
   color: #00e3eb;
 }
 
+#app.status-AA .bubble {
+  background-color: #00e3eb;
+}
+
 #app.status-AAA div {
   color: #0099ff;
+}
+
+#app.status-AAA .bubble {
+  background-color: #0099ff;
 }
 
 #app.layout-points #points {
