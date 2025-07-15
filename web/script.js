@@ -47,13 +47,13 @@ function updateTime() {
   let seconds = now.getSeconds();
   document.getElementById("nowtime").innerText =
     `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  setTimeout(updateTime, 1000 - now.getMilliseconds());
   let day = now.getDate();
   let month = now.getMonth() + 1;
   let weekday = now.getDay();
   let week = ["日", "一", "二", "三", "四", "五", "六"];
   document.getElementById("nowdate").innerText =
     `${month}/${day} ${week[weekday]}`;
+  setTimeout(updateTime, 1000 - now.getMilliseconds());
 }
 
 window.onload = function () {

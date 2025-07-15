@@ -45,14 +45,14 @@ function updatePoints() {
 // {x, y, z, sx, sy, sz}
 let g_bubbles = [];
 let prevTime = new Date();
-const RangeMin = { x: -2.5, y: -2.5, z: 0.5 };
-const RangeMax = { x: 2.5, y: 2.5, z: 4.0 };
+const RangeMin = { x: -2.0, y: -2.0, z: 1.0 };
+const RangeMax = { x: 2.0, y: 2.0, z: 2.0 };
 const BSK = 0.99;
 const BSD = 0.001;
 
 function InitBubbles() {
   g_bubbles = [];
-  for (let i = 0; i < 500; i++) {
+  for (let i = 0; i < 100; i++) {
     g_bubbles.push({
       x: Math.random() * (RangeMax.x - RangeMin.x) + RangeMin.x,
       y: Math.random() * (RangeMax.y - RangeMin.y) + RangeMin.y,
@@ -103,18 +103,15 @@ function moveBubble(bubble, dtime, speed) {
 }
 
 function drawBubble(bubble) {
-  const size = 10 / bubble.z;
+  const size = 40 / bubble.z;
   const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
   const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
-  let opacity = 0.8 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
+  let opacity = 0.5 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
   if (bubble.z < RangeMin.z + 0.1) {
-    opacity = (0.8 * (bubble.z - RangeMin.z)) / 0.1;
+    opacity = (0.5 * (bubble.z - RangeMin.z)) / 0.1;
   }
-  const rgbValues = g_color.match(/\d+/g);
-  const r = rgbValues[0],
-    g = rgbValues[1],
-    b = rgbValues[2];
-  ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  // rgb(r, g, b)
+  ctx.fillStyle = `rgba(${g_color.slice(4, -1)}, ${opacity})`;
   ctx.beginPath();
   try {
     ctx.arc(x, y, size, 0, Math.PI * 2);
@@ -152,23 +149,25 @@ function animatePoints() {
   }
   document.getElementById("app").style.color = g_color;
   backgroundBubbles();
-  requestAnimationFrame(animatePoints);
+  requestAnimationFrame(() => setTimeout(animatePoints, 33));
 }
 
 function updateTime() {
   let now = new Date();
+  // 50ms tolerance
+  now.setTime(now.getTime() + 50);
   let hours = now.getHours();
   let minutes = now.getMinutes();
   let seconds = now.getSeconds();
   document.getElementById("nowtime").innerText =
     `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  setTimeout(updateTime, 100);
   let day = now.getDate();
   let month = now.getMonth() + 1;
   let weekday = now.getDay();
   let week = ["日", "一", "二", "三", "四", "五", "六"];
   document.getElementById("nowdate").innerText =
     `${month}/${day} ${week[weekday]}`;
+  setTimeout(updateTime, 1000 - now.getMilliseconds());
 }
 
 window.onload = function () {
