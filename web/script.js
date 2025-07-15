@@ -77,4 +77,8 @@ window.onload = function () {
     }
     e.preventDefault();
   };
+
+  // font after script
+  // new FontFace("Fira Mono", "url(FiraMono.ttf)");
+  document.getElementById("app").classList.add("load-font");
 };

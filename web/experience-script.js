@@ -103,7 +103,8 @@ function moveBubble(bubble, dtime, speed) {
 }
 
 function drawBubble(bubble) {
-  const size = 40 / bubble.z;
+  const size =
+    Math.sqrt((window.innerHeight * window.innerWidth) / 100) / bubble.z;
   const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
   const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
   let opacity = 0.5 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
@@ -178,6 +179,7 @@ window.onload = function () {
   function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    backgroundBubbles();
   }
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
@@ -204,4 +206,8 @@ window.onload = function () {
     }
     e.preventDefault();
   };
+
+  // font after script
+  // new FontFace("Fira Mono", "url(FiraMono.ttf)");
+  document.getElementById("app").classList.add("load-font");
 };
