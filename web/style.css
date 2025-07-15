@@ -7,7 +7,10 @@ body {
 @font-face {
   font-family: "Fira Mono";
   font-display: swap;
-  src: url("FiraMono.ttf?t=20250715215221");
+  src:
+    url("FiraMono-Regular.woff2") format("woff2"),
+    url("FiraMono-Regular.woff") format("woff"),
+    url("FiraMono-Regular.ttf") format("truetype");
 }
 
 #app {
