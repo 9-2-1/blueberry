@@ -177,7 +177,7 @@ def report_main_tasks(
         category__ = None
         if task.总数 is not None and tstat.进度 >= task.总数:
             if N.time >= task.结束:
-                if changed:
+                if changed or minor_changed:
                     category__ = category_expire
             else:
                 category__ = category_done
@@ -364,7 +364,7 @@ def report_todo_tasks(
         category__ = None
         if todo.标记 is None:
             if P is not None:
-                if changed:
+                if changed or minor_changed:
                     category__ = category_cancel
         elif todo.名称 in N.stats.其他任务生效:
             category__ = category_done

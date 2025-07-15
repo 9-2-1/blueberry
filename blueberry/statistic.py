@@ -140,7 +140,8 @@ def calculate_speed(
         tot_progress += add_progress * add_ratio
         if add_ratio < 1.0:
             break
-    if tot_progress == 0 or tot_time == timedelta(0):
+    # 这里不判断进度是否为0，因为在计算每日用时进度可以为0
+    if tot_time == timedelta(0):
         # bad condition
         return None
     速度 = tot_progress / (tot_time / timedelta(hours=1))
@@ -159,8 +160,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     # 任务
     任务点数 = 0
     任务统计: dict[str, TaskStats] = {}
-    总每日用时 = timedelta(0)
     worktime = now_state.工作时段
+    tot_progress: list[ProgressModel] = []
     for task in now_state.任务.values():
         标记: Literal["*", "-", "=", "!"] = "*"
         if now_time < task.开始:
@@ -175,6 +176,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         用时 = timedelta(0)
         速度 = None
         if progress is not None:
+            tot_progress.extend(progress)
             current = progress[-1]
             进度 = current.进度
             for node in progress:
@@ -186,8 +188,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 if 进度 >= task.总数:
                     标记 = "="
         预计 = None
-        if 速度 and task.总数 is not None:
-            总每日用时 += 速度.每日用时
+        if 速度 is not None and 速度.速度 != 0.0 and task.总数 is not None:
             预计完成时间 = timedelta(hours=1) * (task.总数 - current.进度) / 速度.速度
             预计可用时间 = workdays(now_time, task.结束, worktime) * 速度.每日用时
             差距 = 预计可用时间 - 预计完成时间
@@ -202,6 +203,16 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             速度=速度,
             预计=预计,
         )
+    总每日用时 = timedelta(0)
+    if tot_progress:
+        tot_progress.sort(key=lambda x: x.时间)
+        # 每日平均用时可以通过把所有的进度混在一起后计算近期每日时间得到
+        # 返回的速度没有意义。
+        tot_speed = calculate_speed(
+            tot_progress, tot_progress[0].时间, now_time, worktime
+        )
+        if tot_speed is not None:
+            总每日用时 = tot_speed.每日用时
     for name, stats in 任务统计.items():
         if stats.标记 == "=":
             end_time = now_state.任务[name].结束
