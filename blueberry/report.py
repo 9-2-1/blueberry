@@ -502,7 +502,7 @@ def report_statuses(
         if P is not None:
             pstatus = P.state.状态.get(status.名称)
             if pstatus != status:
-                minor_changed = True
+                changed = True
             elif status.开始 is not None and P.time < status.开始 <= N.time:
                 minor_changed = True
             elif status.结束 is not None and P.time < status.结束 <= N.time:
