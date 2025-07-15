@@ -82,22 +82,22 @@ function moveBubble(bubble, dtime, speed) {
   bubble.x += bubble.sx * dtime;
   bubble.y += (bubble.sy - speed) * dtime;
   bubble.z += bubble.sz * dtime;
-  if (bubble.x < RangeMin.x) {
+  while (bubble.x < RangeMin.x) {
     bubble.x += RangeMax.x - RangeMin.x;
   }
-  if (bubble.x > RangeMax.x) {
+  while (bubble.x > RangeMax.x) {
     bubble.x -= RangeMax.x - RangeMin.x;
   }
-  if (bubble.y < RangeMin.y) {
+  while (bubble.y < RangeMin.y) {
     bubble.y += RangeMax.y - RangeMin.y;
   }
-  if (bubble.y > RangeMax.y) {
+  while (bubble.y > RangeMax.y) {
     bubble.y -= RangeMax.y - RangeMin.y;
   }
-  if (bubble.z < RangeMin.z) {
+  while (bubble.z < RangeMin.z) {
     bubble.z += RangeMax.z - RangeMin.z;
   }
-  if (bubble.z > RangeMax.z) {
+  while (bubble.z > RangeMax.z) {
     bubble.z -= RangeMax.z - RangeMin.z;
   }
 }
