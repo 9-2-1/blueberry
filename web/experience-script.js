@@ -45,14 +45,14 @@ function updatePoints() {
 // {x, y, z, sx, sy, sz}
 let g_bubbles = [];
 let prevTime = new Date();
-const RangeMin = { x: -2.5, y: -2.5, z: 0.1 };
-const RangeMax = { x: 2.5, y: 2.5, z: 4.1 };
+const RangeMin = { x: -2.5, y: -2.5, z: 0.5 };
+const RangeMax = { x: 2.5, y: 2.5, z: 4.0 };
 const BSK = 0.99;
-const BSD = 0.005;
+const BSD = 0.001;
 
 function InitBubbles() {
   g_bubbles = [];
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 500; i++) {
     g_bubbles.push({
       x: Math.random() * (RangeMax.x - RangeMin.x) + RangeMin.x,
       y: Math.random() * (RangeMax.y - RangeMin.y) + RangeMin.y,
@@ -116,7 +116,11 @@ function drawBubble(bubble) {
     b = rgbValues[2];
   ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
   ctx.beginPath();
-  ctx.arc(x, y, size, 0, Math.PI * 2);
+  try {
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+  } catch (error) {
+    console.error(error);
+  }
   ctx.fill();
 }
 
