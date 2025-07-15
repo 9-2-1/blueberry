@@ -6,9 +6,9 @@ let g_time = new Date();
 let g_a_point = null;
 let g_a_speed = 5;
 
-// Canvas相关全局变量
 let canvas, ctx;
 const colorMap = {
+  // # rgb(r, g, b) only
   D: "rgb(255, 72, 72)",
   C: "rgb(255, 144, 17)",
   B: "rgb(239, 243, 0)",
@@ -17,7 +17,7 @@ const colorMap = {
   AAA: "rgb(0, 153, 255)",
   default: "rgb(212, 212, 212)",
 };
-let g_currentColor = colorMap["default"];
+let g_color = colorMap["default"];
 
 function updatePoints() {
   fetch("get_points_experience", { method: "get" })
@@ -42,78 +42,75 @@ function updatePoints() {
     });
 }
 
+// {x, y, z, sx, sy, sz}
 let g_bubbles = [];
 let prevTime = new Date();
-const ZMin = 0.7;
-const ZMax = 4;
-const ZDensity = 0.005;
-let g_zaccomulate = ZMin - ZMax;
-// {x: number, y: number, z: number, element: HTMLElement}
-function backgroundBubbles() {
-  // 清除画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+const RangeMin = { x: -2.5, y: -2.5, z: 0.1 };
+const RangeMax = { x: 2.5, y: 2.5, z: 4.1 };
+const BSK = 0.99;
+const BSD = 0.005;
 
-  // move bubbles by g_speed
-  let deletions = [];
-  let nowTime = new Date();
-  let dtime = (nowTime - prevTime) / 1000;
-  prevTime = nowTime;
-  deltaZ = -g_a_speed * dtime;
-
-  for (const bubble of g_bubbles) {
-    bubble.z += deltaZ;
-    // 移除超出范围的气泡
-    if (bubble.z > ZMax || bubble.z <= ZMin) {
-      deletions.push(bubble);
-    } else {
-      // 绘制气泡
-      drawBubble(bubble);
-    }
-  }
-
-  // 移除删除的气泡
-  for (const bubble of deletions) {
-    g_bubbles.splice(g_bubbles.indexOf(bubble), 1);
-  }
-
-  // 添加新气泡
-  g_zaccomulate += deltaZ;
-  if (g_zaccomulate > ZMax - ZMin) {
-    g_zaccomulate = ZMax - ZMin;
-  }
-  if (g_zaccomulate < ZMin - ZMax) {
-    g_zaccomulate = ZMin - ZMax;
-  }
-
-  if (g_zaccomulate > 0) {
-    for (let i = 0; i < Math.floor(g_zaccomulate / ZDensity); i++) {
-      g_bubbles.push(createBubble(ZMin, ZMin + g_zaccomulate));
-      g_zaccomulate -= ZDensity;
-    }
-  } else {
-    for (let i = 0; i < Math.floor(-g_zaccomulate / ZDensity); i++) {
-      g_bubbles.push(createBubble(ZMax - -g_zaccomulate, ZMax));
-      g_zaccomulate += ZDensity;
-    }
+function InitBubbles() {
+  g_bubbles = [];
+  for (let i = 0; i < 1000; i++) {
+    g_bubbles.push({
+      x: Math.random() * (RangeMax.x - RangeMin.x) + RangeMin.x,
+      y: Math.random() * (RangeMax.y - RangeMin.y) + RangeMin.y,
+      z: Math.random() * (RangeMax.z - RangeMin.z) + RangeMin.z,
+      sx: (Math.random() * 2 - 1) * BSD,
+      sy: (Math.random() * 2 - 1) * BSD,
+      sz: (Math.random() * 2 - 1) * BSD,
+    });
   }
 }
 
-function createBubble(zMin, zMax) {
-  let a = Math.random() * 2 * Math.PI;
-  return {
-    x: Math.cos(a),
-    y: Math.sin(a),
-    z: Math.random() * (zMax - zMin) + zMin,
-  };
+function backgroundBubbles() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  let nowTime = new Date();
+  let dtime = (nowTime - prevTime) / 1000;
+  prevTime = nowTime;
+  for (const bubble of g_bubbles) {
+    moveBubble(bubble, dtime, g_a_speed);
+    drawBubble(bubble);
+  }
+}
+
+function moveBubble(bubble, dtime, speed) {
+  bubble.sx = bubble.sx * BSK + (Math.random() * 2 - 1) * BSD;
+  bubble.sy = bubble.sy * BSK + (Math.random() * 2 - 1) * BSD;
+  bubble.sz = bubble.sz * BSK + (Math.random() * 2 - 1) * BSD;
+  bubble.x += bubble.sx * dtime;
+  bubble.y += (bubble.sy - speed) * dtime;
+  bubble.z += bubble.sz * dtime;
+  if (bubble.x < RangeMin.x) {
+    bubble.x += RangeMax.x - RangeMin.x;
+  }
+  if (bubble.x > RangeMax.x) {
+    bubble.x -= RangeMax.x - RangeMin.x;
+  }
+  if (bubble.y < RangeMin.y) {
+    bubble.y += RangeMax.y - RangeMin.y;
+  }
+  if (bubble.y > RangeMax.y) {
+    bubble.y -= RangeMax.y - RangeMin.y;
+  }
+  if (bubble.z < RangeMin.z) {
+    bubble.z += RangeMax.z - RangeMin.z;
+  }
+  if (bubble.z > RangeMax.z) {
+    bubble.z -= RangeMax.z - RangeMin.z;
+  }
 }
 
 function drawBubble(bubble) {
   const size = 10 / bubble.z;
   const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
   const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
-  const opacity = (0.8 * (1 / ZMax - 1 / bubble.z)) / (1 / ZMax - 1 / ZMin);
-
-  const rgbValues = g_currentColor.match(/\d+/g);
+  let opacity = 0.8 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
+  if (bubble.z < RangeMin.z + 0.1) {
+    opacity = (0.8 * (bubble.z - RangeMin.z)) / 0.1;
+  }
+  const rgbValues = g_color.match(/\d+/g);
   const r = rgbValues[0],
     g = rgbValues[1],
     b = rgbValues[2];
@@ -138,9 +135,6 @@ function animatePoints() {
     g_a_speed += (g_speed - g_a_speed) * 0.05;
     document.getElementById("points").innerText = Math.floor(g_a_point + 0.5);
   }
-  for (const x of rating_lists) {
-    document.getElementById("app").classList.remove("status-" + x);
-  }
   if (!g_error) {
     let rating = "D";
     for (const [i, x] of point_thresholds.entries()) {
@@ -148,11 +142,11 @@ function animatePoints() {
         rating = rating_lists[i + 1];
       }
     }
-    document.getElementById("app").classList.add("status-" + rating);
-    g_currentColor = colorMap[rating];
+    g_color = colorMap[rating];
   } else {
-    g_currentColor = colorMap["default"];
+    g_color = colorMap["default"];
   }
+  document.getElementById("app").style.color = g_color;
   backgroundBubbles();
   requestAnimationFrame(animatePoints);
 }
@@ -185,6 +179,7 @@ window.onload = function () {
   resizeCanvas();
   window.addEventListener("resize", resizeCanvas);
 
+  InitBubbles();
   animatePoints();
   updatePoints();
   updateTime();

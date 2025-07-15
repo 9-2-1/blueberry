@@ -1,3 +1,14 @@
+const colorMap = {
+  // # rgb(r, g, b) only
+  D: "rgb(255, 72, 72)",
+  C: "rgb(255, 144, 17)",
+  B: "rgb(239, 243, 0)",
+  A: "rgb(0, 226, 19)",
+  AA: "rgb(0, 227, 235)",
+  AAA: "rgb(0, 153, 255)",
+  default: "rgb(212, 212, 212)",
+};
+
 function updatePoints() {
   const point_thresholds = [-500, -200, 0, 200, 500];
   const rating_lists = ["D", "C", "B", "A", "AA", "AAA"];
@@ -11,22 +22,17 @@ function updatePoints() {
     .then((points) => {
       document.getElementById("points").innerText = points;
       let rating = "D";
-      for (const x of rating_lists) {
-        document.getElementById("app").classList.remove("status-" + x);
-      }
       for (const [i, x] of point_thresholds.entries()) {
         if (points >= x) {
           rating = rating_lists[i + 1];
         }
       }
-      document.getElementById("app").classList.add("status-" + rating);
+      document.getElementById("app").style.color = colorMap[rating];
       setTimeout(updatePoints, 10000);
     })
     .catch((error) => {
       console.error(error);
-      for (const x of rating_lists) {
-        document.getElementById("app").classList.remove("status-" + x);
-      }
+      document.getElementById("app").style.color = colorMap["default"];
       document.getElementById("points").innerText = "----";
       setTimeout(updatePoints, 10000);
     });
