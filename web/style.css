@@ -21,7 +21,7 @@ body {
 }
 
 #app div {
-  font-family:"Fira Mono", 'Courier New', Courier, monospace;
+  font-family: "Fira Mono", "Courier New", Courier, monospace;
   line-height: 100%;
   user-select: none;
   margin: 0;
