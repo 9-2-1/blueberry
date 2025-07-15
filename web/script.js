@@ -40,12 +40,14 @@ function updatePoints() {
 
 function updateTime() {
   let now = new Date();
+  // 50ms tolerance
+  now.setTime(now.getTime() + 50);
   let hours = now.getHours();
   let minutes = now.getMinutes();
   let seconds = now.getSeconds();
   document.getElementById("nowtime").innerText =
     `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-  setTimeout(updateTime, 100);
+  setTimeout(updateTime, 1000 - now.getMilliseconds());
   let day = now.getDate();
   let month = now.getMonth() + 1;
   let weekday = now.getDay();
