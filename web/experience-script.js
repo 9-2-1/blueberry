@@ -45,10 +45,9 @@ function updatePoints() {
 // {x, y, z, sx, sy, sz}
 let g_bubbles = [];
 let prevTime = new Date();
-const RangeMin = { x: -2.0, y: -2.0, z: 1.0 };
+const RangeMin = { x: -2.0, y: -2.0, z: 0.9 };
 const RangeMax = { x: 2.0, y: 2.0, z: 2.0 };
-const BSK = 0.99;
-const BSD = 0.001;
+const BSD = 0.01;
 
 function InitBubbles() {
   g_bubbles = [];
@@ -76,9 +75,6 @@ function backgroundBubbles() {
 }
 
 function moveBubble(bubble, dtime, speed) {
-  bubble.sx = bubble.sx * BSK + (Math.random() * 2 - 1) * BSD;
-  bubble.sy = bubble.sy * BSK + (Math.random() * 2 - 1) * BSD;
-  bubble.sz = bubble.sz * BSK + (Math.random() * 2 - 1) * BSD;
   bubble.x += bubble.sx * dtime;
   bubble.y += (bubble.sy - speed) * dtime;
   bubble.z += bubble.sz * dtime;
@@ -104,7 +100,7 @@ function moveBubble(bubble, dtime, speed) {
 
 function drawBubble(bubble) {
   const size =
-    Math.sqrt((window.innerHeight * window.innerWidth) / 100) / bubble.z;
+    Math.sqrt((window.innerHeight * window.innerWidth) / 50) / bubble.z;
   const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
   const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
   let opacity = 0.5 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
