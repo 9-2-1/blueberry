@@ -103,9 +103,9 @@ function drawBubble(bubble) {
     Math.sqrt((window.innerHeight * window.innerWidth) / 50) / bubble.z;
   const x = canvas.width * (0.5 + bubble.x / (2 * bubble.z));
   const y = canvas.height * (0.5 + bubble.y / (2 * bubble.z));
-  let opacity = 0.5 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
+  let opacity = 0.3 * (1 - (bubble.z - RangeMin.z) / (RangeMax.z - RangeMin.z));
   if (bubble.z < RangeMin.z + 0.1) {
-    opacity = (0.5 * (bubble.z - RangeMin.z)) / 0.1;
+    opacity = (0.3 * (bubble.z - RangeMin.z)) / 0.1;
   }
   // rgb(r, g, b)
   ctx.fillStyle = `rgba(${g_color.slice(4, -1)}, ${opacity})`;
