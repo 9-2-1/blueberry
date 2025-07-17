@@ -78,23 +78,24 @@ function moveBubble(bubble, dtime, speed) {
   bubble.x += bubble.sx * dtime;
   bubble.y += (bubble.sy - speed) * dtime;
   bubble.z += bubble.sz * dtime;
-  while (bubble.x < RangeMin.x) {
-    bubble.x += RangeMax.x - RangeMin.x;
-  }
-  while (bubble.x > RangeMax.x) {
-    bubble.x -= RangeMax.x - RangeMin.x;
-  }
-  while (bubble.y < RangeMin.y) {
-    bubble.y += RangeMax.y - RangeMin.y;
-  }
-  while (bubble.y > RangeMax.y) {
-    bubble.y -= RangeMax.y - RangeMin.y;
-  }
-  while (bubble.z < RangeMin.z) {
-    bubble.z += RangeMax.z - RangeMin.z;
-  }
-  while (bubble.z > RangeMax.z) {
-    bubble.z -= RangeMax.z - RangeMin.z;
+
+  const attrs = ["x", "y", "z"];
+  for (const attr of attrs) {
+    if (bubble[attr] < RangeMin[attr] || bubble[attr] > RangeMax[attr]) {
+      while (bubble[attr] < RangeMin[attr]) {
+        bubble[attr] += RangeMax[attr] - RangeMin[attr];
+      }
+      while (bubble[attr] > RangeMax[attr]) {
+        bubble[attr] -= RangeMax[attr] - RangeMin[attr];
+      }
+      for (const attr2 in attrs) {
+        if (attr2 != attr) {
+          bubble[attr2] =
+            Math.random() * (RangeMax[attr2] - RangeMin[attr2]) +
+            RangeMin[attr2];
+        }
+      }
+    }
   }
 }
 
