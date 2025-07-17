@@ -88,7 +88,7 @@ function moveBubble(bubble, dtime, speed) {
       while (bubble[attr] > RangeMax[attr]) {
         bubble[attr] -= RangeMax[attr] - RangeMin[attr];
       }
-      for (const attr2 in attrs) {
+      for (const attr2 of attrs) {
         if (attr2 != attr) {
           bubble[attr2] =
             Math.random() * (RangeMax[attr2] - RangeMin[attr2]) +
