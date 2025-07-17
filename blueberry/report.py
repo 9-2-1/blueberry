@@ -270,8 +270,7 @@ def report_main_tasks(
             if verbose:
                 report += verbose_str
             if task.描述 is not None:
-                report += indent(task.描述, "  ")
-            report += "\n\n"
+                report += indent(task.描述, "  ") + "\n\n"
         return report, table_line
 
     report_upcoming, table_upcoming = report_main_tasks_category(
@@ -446,8 +445,7 @@ def report_todo_tasks(
             if verbose:
                 report += verbose_str
             if todo.描述 is not None:
-                report += indent(todo.描述, "  ")
-            report += "\n\n"
+                report += indent(todo.描述, "  ") + "\n\n"
         return report, table_line
 
     report_upcoming, table_upcoming = report_todo_tasks_category(
@@ -573,8 +571,7 @@ def report_statuses(
             if verbose:
                 report += verbose_str
             if status.描述 is not None:
-                report += indent(status.描述, "  ")
-            report += "\n\n"
+                report += indent(status.描述, "  ") + "\n\n"
         return report, table_line
 
     report_upcoming, table_upcoming = report_statuses_category(
@@ -626,8 +623,7 @@ def report_hints(
         for hint in hints:
             report += f"- {hint.标题} ({fmt(N.time, hint.时间, olddiff=False)})\n"
             if hint.描述 is not None:
-                report += indent(hint.描述, "  ")
-            report += "\n\n"
+                report += indent(hint.描述, "  ") + "\n\n"
         return report
 
     report = report_hints_category(category_hints)

@@ -180,8 +180,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             current = progress[-1]
             进度 = current.进度
             for node in progress:
-                if node.描述 is not None or node.进度 != 进度:
-                    进度描述 = node.描述
+                if node.进度 != 进度:
+                    进度描述 = node.描述 if node.描述 is None else ""
                 用时 += node.用时
             速度 = calculate_speed(progress, task.开始, now_time, worktime)
             if task.总数 is not None:
