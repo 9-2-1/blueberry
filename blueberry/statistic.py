@@ -179,9 +179,11 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             tot_progress.extend(progress)
             current = progress[-1]
             进度 = current.进度
+            old_progress = None
             for node in progress:
-                if node.进度 != 进度:
+                if node.进度 != old_progress:
                     进度描述 = node.描述 if node.描述 is None else ""
+                    old_progress = node.进度
                 用时 += node.用时
             速度 = calculate_speed(progress, task.开始, now_time, worktime)
             if task.总数 is not None:
