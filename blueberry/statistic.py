@@ -99,6 +99,8 @@ def calculate_speed(
     begin_time: datetime,
     now_time: datetime,
     worktime: list[WorktimeModel],
+    *,
+    DEBUG: bool = False,
 ) -> Optional[TaskSpeed]:
     # 近期记录
     MIN_TOT_TIME = timedelta(hours=2)
@@ -109,6 +111,9 @@ def calculate_speed(
     # 这里需要注意时间的计算方式：
     # 进度记录描述的是 “花费‘用时’时间后，在‘时间’让进度达到了‘进度’”。
     # 选择“开始的记录”后“开始的记录”本身的时间不包含在总时间内（那是起点）
+    if DEBUG:
+        print("calculate_speed:")
+        print("-" * 80)
     for i in reversed(range(len(progress))):
         add_progress = (
             progress[i].进度 - progress[i - 1].进度 if i != 0 else progress[i].进度
@@ -138,8 +143,14 @@ def calculate_speed(
         tot_time += add_time * add_ratio
         tot_dayspan += add_dayspan * add_ratio
         tot_progress += add_progress * add_ratio
+        if DEBUG:
+            print(
+                f"{add_ratio:5.0%} t{add_time} d{add_dayspan:.2f} T{tot_time} D{tot_dayspan:.2f} @{progress[i].时间} #{progress[i].名称}"
+            )
         if add_ratio < 1.0:
             break
+    if DEBUG:
+        print("=" * 80)
     # 这里不判断进度是否为0，因为在计算每日用时进度可以为0
     if tot_time == timedelta(0):
         # bad condition
@@ -211,7 +222,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         # 每日平均用时可以通过把所有的进度混在一起后计算近期每日时间得到
         # 返回的速度没有意义。
         tot_speed = calculate_speed(
-            tot_progress, tot_progress[0].时间, now_time, worktime
+            tot_progress, tot_progress[0].时间, now_time, worktime, DEBUG=False
         )
         if tot_speed is not None:
             总每日用时 = tot_speed.每日用时
