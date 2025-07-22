@@ -132,10 +132,10 @@ def report_head(
 def report_worktime(N: ReportData) -> str:
     worktime = N.state.工作时段
     if not worktime:
-        return "未设置工作时段。"
-    report = "工作时段:"
+        return "未设定工作时段。"
+    report = "设定的工作时段:"
     for workt in worktime:
-        report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}→{workt.结束.hour:02d}:{workt.结束.minute:02d}"
+        report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}~{workt.结束.hour:02d}:{workt.结束.minute:02d}"
     return report.strip()
 
 
