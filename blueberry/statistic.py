@@ -181,7 +181,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             进度 = current.进度
             old_progress = None
             for node in progress:
-                if node.进度 != old_progress:
+                if node.进度 != old_progress or node.描述 is not None:
                     进度描述 = node.描述 if node.描述 is not None else ""
                     old_progress = node.进度
                 用时 += node.用时
