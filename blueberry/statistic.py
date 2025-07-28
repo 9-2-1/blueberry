@@ -103,8 +103,8 @@ def calculate_speed(
     DEBUG: bool = False,
 ) -> Optional[TaskSpeed]:
     # 近期记录
-    MIN_TOT_TIME = timedelta(hours=2)
-    MIN_TOT_DAYSPAN = 3  # workdays
+    MIN_TOT_TIME = timedelta(hours=6)
+    MIN_TOT_DAYSPAN = 4  # workdays
     tot_progress = 0.0
     tot_time = timedelta(0)
     tot_dayspan = workdays(progress[-1].时间, now_time, worktime)  # workdays: float
@@ -236,12 +236,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 )
         else:
             if stats.预计 is not None:
-                if stats.预计.差距 > timedelta(0):
-                    # 提前的任务，使用推荐用时作为总每日用时来估计“提前天数”，防止“完成后休息”的行为反而提高点数（继续提前完成反而降低点数）
-                    stats.点数 = math.floor(stats.预计.差距 / 推荐用时 * 100 + 0.5)
-                else:
-                    # 落后的任务，使用真正的平均每日用时估计“提前天数”。
-                    stats.点数 = math.floor(stats.预计.差距 / 总每日用时 * 100 + 0.5)
+                # 使用推荐用时作为总每日用时来估计点数
+                stats.点数 = math.floor(stats.预计.差距 / 推荐用时 * 100 + 0.5)
             else:
                 start_time = now_state.任务[name].开始
                 if now_time > start_time:
