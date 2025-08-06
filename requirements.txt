@@ -13,4 +13,3 @@ wcwidth
 
 # datetime
 dateparser
-tzdata
