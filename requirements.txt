@@ -13,3 +13,6 @@ wcwidth
 
 # datetime
 dateparser
+
+# plotting
+matplotlib
