@@ -84,4 +84,10 @@ class WorktimeModel(BaseModel):
     结束: datetime_time
 
 
+class PickerModel(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    名称: str
+    禁用: Optional[Literal["-"]] = None
+
+
 AppendOnlyModel = TypeVar("AppendOnlyModel", bound=AppendOnly)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, time as datetime_time
 import math
 
-from .models import WorktimeModel, ProgressModel
+from .models import WorktimeModel, ProgressModel, PickerModel
 from .collect import State
 from .config import 推荐用时
 
@@ -166,6 +166,14 @@ def calculate_speed(
     )
 
 
+def isdisabled(task_name: str, preference: list[PickerModel]) -> bool:
+    for picker in preference:
+        if task_name == picker.名称:
+            if picker.禁用 == "-":
+                return True
+    return False
+
+
 def statistic(now_state: State, now_time: datetime) -> StateStats:
     # Goldie点数 = 任务 + 状态 + 其他任务完成
     # 任务
@@ -174,6 +182,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     worktime = now_state.工作时段
     tot_progress: list[ProgressModel] = []
     for task in now_state.任务.values():
+        if isdisabled(task.名称, now_state.选择排序偏好):
+            continue
         标记: Literal["*", "-", "=", "!"] = "*"
         if now_time < task.开始:
             标记 = "-"
@@ -252,6 +262,9 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     状态点数 = 0
     状态生效: list[str] = []
     for status in now_state.状态.values():
+        if isdisabled(status.名称, now_state.选择排序偏好):
+
+            continue
         if status.点数 is None:
             continue
         if status.开始 is not None and status.开始 > now_time:
@@ -265,6 +278,9 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     其他任务点数 = 0
     其他任务生效: list[str] = []
     for todo in now_state.待办事项.values():
+        if isdisabled(status.名称, now_state.选择排序偏好):
+
+            continue
         if (
             todo.完成 is not None
             and todo.完成 <= now_time

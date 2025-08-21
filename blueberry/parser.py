@@ -15,6 +15,7 @@ from .models import (
     TodoModel,
     HintModel,
     WorktimeModel,
+    PickerModel,
 )
 
 # openpyxl
@@ -32,6 +33,7 @@ class Data(BaseModel):
     工作时段: list[WorktimeModel] = [
         WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
     ]
+    选择排序偏好: list[PickerModel] = []
 
 
 def parse_table(table: Worksheet) -> list[dict[str, Any]]:
@@ -82,6 +84,14 @@ def load_data(workbook: str) -> Data:
     工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
     if "工作时段" in wb.sheetnames:
         工作时段 = parse_model_table(wb["工作时段"], WorktimeModel)
+    if "选择排序偏好" in wb.sheetnames:
+        选择排序偏好 = parse_model_table(wb["选择排序偏好"], PickerModel)
     return Data(
-        状态=状态, 任务=任务, 进度=进度, 待办事项=待办事项, 提示=提示, 工作时段=工作时段
+        状态=状态,
+        任务=任务,
+        进度=进度,
+        待办事项=待办事项,
+        提示=提示,
+        工作时段=工作时段,
+        选择排序偏好=选择排序偏好,
     )

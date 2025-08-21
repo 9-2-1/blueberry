@@ -12,6 +12,7 @@ from .models import (
     TodoModel,
     HintModel,
     WorktimeModel,
+    PickerModel,
 )
 
 from .parser import Data
@@ -24,6 +25,7 @@ class State(BaseModel):
     待办事项: dict[str, TodoModel]
     提示: list[HintModel]
     工作时段: list[WorktimeModel]
+    选择排序偏好: list[PickerModel]
 
 
 def collect_lines(
@@ -69,4 +71,5 @@ def collect_state(data: Data, now_time: datetime) -> State:
         待办事项=collect_lines(data.待办事项, now_time),
         提示=collect_hints(data.提示, now_time),
         工作时段=data.工作时段,
+        选择排序偏好=data.选择排序偏好,
     )

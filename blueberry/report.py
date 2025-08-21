@@ -1,4 +1,4 @@
-from typing import TypeVar, overload, Optional
+from typing import TypeVar, overload, Optional, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from textwrap import indent
@@ -9,9 +9,11 @@ import wcwidth  # type: ignore
 from tabulate import tabulate
 
 from .config import 推荐用时
-from .models import HintModel
+from .models import HintModel, AppendOnly, PickerModel
+
 from .collect import State
-from .statistic import StateStats
+from .statistic import StateStats, isdisabled
+
 
 FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
 
@@ -98,6 +100,22 @@ class ReportData:
     stats: StateStats
 
 
+T = TypeVar("T", bound=AppendOnly)
+
+
+def priority(item: T, preference: list[PickerModel]) -> int:
+    for i, picker in enumerate(preference):
+        if item.名称 == picker.名称:
+            return i
+    return len(preference)
+
+
+def prefer(items: Iterable[T], preference: list[PickerModel]) -> list[T]:
+    filtered_items = filter(lambda x: not isdisabled(x.名称, preference), items)
+    sorted_items = sorted(filtered_items, key=lambda x: priority(x, preference))
+    return sorted_items
+
+
 def report_head(
     N: ReportData,
     P: Optional[ReportData],
@@ -155,7 +173,7 @@ def report_main_tasks(
     category_running: list[str] = []  # 包括超时任务
     category_done: list[str] = []
     category_expire: list[str] = []
-    for task in N.state.任务.values():
+    for task in prefer(N.state.任务.values(), N.state.选择排序偏好):
         # change_only category
         tstat = N.stats.任务统计[task.名称]
         changed = False
@@ -310,7 +328,7 @@ def report_daily_time(
     if Y is not None:
         if P is not None and N.time.date() != P.time.date():
             raise ValueError("不能对比不在同一天的每日进度")
-        for task in N.state.任务.values():
+        for task in prefer(N.state.任务.values(), N.state.选择排序偏好):
             tstat = N.stats.任务统计[task.名称]
             ystat = Y.stats.任务统计.get(task.名称)
             y用时 = ystat.用时 if ystat is not None else timedelta(0)
@@ -345,7 +363,7 @@ def report_todo_tasks(
     category_done: list[str] = []
     category_expire: list[str] = []
     category_cancel: list[str] = []
-    for todo in N.state.待办事项.values():
+    for todo in prefer(N.state.待办事项.values(), N.state.选择排序偏好):
         changed = False
         minor_changed = False
         if P is not None:
@@ -494,7 +512,7 @@ def report_statuses(
     category_upcoming: list[str] = []
     category_active: list[str] = []
     category_expire: list[str] = []
-    for status in N.state.状态.values():
+    for status in prefer(N.state.状态.values(), N.state.选择排序偏好):
         changed = False
         minor_changed = False
         if P is not None:
