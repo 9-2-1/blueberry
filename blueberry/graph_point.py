@@ -86,7 +86,6 @@ def plot_goldie_points(history: List[Tuple[datetime, int]]) -> None:
 
     plt.tight_layout()
     plt.savefig("goldie_points_trend.png", dpi=300)
-    plt.show()
 
 
 if __name__ == "__main__":

@@ -10,6 +10,6 @@ if __name__ == "__main__":
     # print("模拟数据图表已生成并保存为 goldie_points_trend.png")
 
     print("使用实际数据生成图表...")
-    history = get_goldie_points_history(45, "记录.xlsx")
+    history = get_goldie_points_history(30, "记录.xlsx")
     plot_goldie_points(history)
     print("实际数据图表已生成并保存为 goldie_points_trend.png")

@@ -265,7 +265,11 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     其他任务点数 = 0
     其他任务生效: list[str] = []
     for todo in now_state.待办事项.values():
-        if todo.完成 is not None and todo.完成 > now_time - timedelta(days=3):
+        if (
+            todo.完成 is not None
+            and todo.完成 <= now_time
+            and todo.完成 > now_time - timedelta(days=3)
+        ):
             其他任务点数 += todo.点数
             其他任务生效.append(todo.名称)
 
