@@ -14,8 +14,6 @@ from .report import (
     report_main_tasks,
     report_daily_time,
     report_todo_tasks,
-    report_statuses,
-    report_hints,
     ReportData,
 )
 from .ctz_now import ctz_now
@@ -236,57 +234,6 @@ def main() -> None:
         else:
             report += "-- 其他任务 --\n"
         report += "\n\n".join(report_todo_tasks_strs) + "\n\n"
-
-    report_hints_str = report_hints(
-        now_data,
-        prev_data,
-        change_only=args.changes or args.short or args.short_and_changes,
-        verbose=args.verbose,
-    )
-    if report_hints_str != "":
-        report += "-- 提示 --\n"
-        report += report_hints_str + "\n\n"
-
-    report_statuses_strs: list[str] = []
-    if args.changes or args.short_and_changes:
-        report_statuses_strs.append(
-            report_statuses(
-                now_data,
-                prev_data,
-                change_only=True,
-                verbose=args.verbose,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-        report_statuses_strs.append(
-            report_statuses(
-                now_data,
-                prev_data,
-                minor_change_only=not args.short_and_changes,
-                short=True,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    else:
-        report_statuses_strs.append(
-            report_statuses(
-                now_data,
-                prev_data,
-                verbose=args.verbose,
-                short=args.short,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    report_statuses_strs = [x for x in report_statuses_strs if x != ""]
-    if report_statuses_strs:
-        if args.changes:
-            report += "-- 状态变化 --\n"
-        else:
-            report += "-- 状态 --\n"
-        report += "\n\n".join(report_statuses_strs) + "\n\n"
 
     if not (args.short or args.changes or args.short_and_changes or args.no_info):
         report += "-- 说明 --\n"

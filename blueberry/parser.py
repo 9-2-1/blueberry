@@ -11,9 +11,7 @@ from .models import (
     DeleteModel,
     TaskModel,
     ProgressModel,
-    StatusModel,
     TodoModel,
-    HintModel,
     WorktimeModel,
     PickerModel,
 )
@@ -27,9 +25,7 @@ T = TypeVar("T")
 class Data(BaseModel):
     任务: list[Union[TaskModel, DeleteModel]]
     进度: list[ProgressModel]
-    状态: list[Union[StatusModel, DeleteModel]]
     待办事项: list[Union[TodoModel, DeleteModel]]
-    提示: list[HintModel]
     工作时段: list[WorktimeModel] = [
         WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
     ]
@@ -78,9 +74,7 @@ def load_data(workbook: str) -> Data:
     wb = load_workbook(workbook)
     任务 = parse_append_only_table(wb["任务"], TaskModel)
     进度 = parse_model_table(wb["进度"], ProgressModel)
-    状态 = parse_append_only_table(wb["状态"], StatusModel)
     待办事项 = parse_append_only_table(wb["待办事项"], TodoModel)
-    提示 = parse_model_table(wb["提示"], HintModel)
     工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
     选择排序偏好: list[PickerModel] = []
     if "工作时段" in wb.sheetnames:
@@ -88,11 +82,9 @@ def load_data(workbook: str) -> Data:
     if "选择排序偏好" in wb.sheetnames:
         选择排序偏好 = parse_model_table(wb["选择排序偏好"], PickerModel)
     return Data(
-        状态=状态,
         任务=任务,
         进度=进度,
         待办事项=待办事项,
-        提示=提示,
         工作时段=工作时段,
         选择排序偏好=选择排序偏好,
     )

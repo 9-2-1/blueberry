@@ -9,7 +9,7 @@ import wcwidth  # type: ignore
 from tabulate import tabulate
 
 from .config import 推荐用时
-from .models import HintModel, AppendOnly, PickerModel
+from .models import AppendOnly, PickerModel
 
 from .collect import State
 from .statistic import StateStats, isdisabled
@@ -130,9 +130,8 @@ def report_head(
         report += f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
         if Y is not None:
             report += f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
-        report += f"(任务:{fmt(P.stats.任务点数, N.stats.任务点数, olddiff=olddiff, pos=True)}"
-        report += f" 状态:{fmt(P.stats.状态点数, N.stats.状态点数, olddiff=olddiff, pos=True)}"
-        report += f" 其他:{fmt(P.stats.其他任务点数, N.stats.其他任务点数, olddiff=olddiff, pos=True)})\n"
+        report += f"(任务:{fmt(P.stats.长期任务点数, N.stats.长期任务点数, olddiff=olddiff, pos=True)}"
+        report += f" 其他:{fmt(P.stats.短期任务点数, N.stats.短期任务点数, olddiff=olddiff, pos=True)})\n"
         report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
     else:
         report += f"时间:{fmt(N.time)}\n"
@@ -140,9 +139,8 @@ def report_head(
         report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
         if Y is not None:
             report += f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
-        report += f"(任务:{fmt(N.stats.任务点数)}"
-        report += f" 状态:{fmt(N.stats.状态点数)}"
-        report += f" 其他:{fmt(N.stats.其他任务点数)})\n"
+        report += f"(长期:{fmt(N.stats.长期任务点数)}"
+        report += f" 短期:{fmt(N.stats.短期任务点数)})\n"
         report += f"近期平均每日用时:{fmt(N.stats.总每日用时)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
     return report
 
@@ -497,152 +495,3 @@ def report_todo_tasks(
         report += report_expire
     return report.strip()
 
-
-def report_statuses(
-    N: ReportData,
-    P: Optional[ReportData],
-    *,
-    short: bool = False,
-    change_only: bool = False,
-    minor_change_only: bool = False,
-    upcoming: Optional[float] = None,
-    verbose: bool = False,
-    olddiff: bool = False,
-) -> str:
-    category_upcoming: list[str] = []
-    category_active: list[str] = []
-    category_expire: list[str] = []
-    for status in prefer(N.state.状态.values(), N.state.选择排序偏好):
-        changed = False
-        minor_changed = False
-        if P is not None:
-            pstatus = P.state.状态.get(status.名称)
-            if pstatus != status:
-                changed = True
-            elif status.开始 is not None and P.time < status.开始 <= N.time:
-                minor_changed = True
-            elif status.结束 is not None and P.time < status.结束 <= N.time:
-                minor_changed = True
-        category__ = None
-        if status.点数 is None or (status.结束 is not None and N.time >= status.结束):
-            if changed or minor_changed:
-                category__ = category_expire
-        elif status.开始 is None or N.time >= status.开始:
-            category__ = category_active
-        elif upcoming is None or (
-            status.开始 is not None and status.开始 < N.time + timedelta(days=upcoming)
-        ):
-            category__ = category_upcoming
-        if category__ is not None:
-            if (
-                (change_only and changed)
-                or (minor_change_only and minor_changed)
-                or not (change_only or minor_change_only)
-            ):
-                category__.append(status.名称)
-
-    def report_statuses_category(
-        title: str, status_names: list[str]
-    ) -> tuple[str, list[list[str]]]:
-        if not status_names:
-            return "", []
-        report = ""
-        report += f"{title}:\n"
-        table_line: list[list[str]] = []
-        for status_name in status_names:
-            verbose_str = ""
-            status = N.state.状态[status_name]
-            t点数 = status.点数 if status.点数 is not None else 0
-            statuses = []
-            p点数 = t点数
-            if P is not None:
-                p点数 = 0
-                pstatus = P.state.状态.get(status_name)
-                if pstatus != status:
-                    verbose_str += f"  | 更新于{fmt(N.time - status.时间)}前\n"
-                if pstatus is not None and pstatus.点数 is not None:
-                    p点数 = pstatus.点数
-            if p点数 != t点数:
-                point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
-            else:
-                point_str = f"点数{fmt(t点数, pos=True)}"
-            if status.开始 is not None and N.time < status.开始:
-                statuses.append(f"{fmt(status.开始 - N.time, pos=True)}开始")
-            elif status.结束 is not None:
-                statuses.append(f"{fmt(status.结束 - N.time, pos=True)}结束")
-            else:
-                statuses.append("")
-            if status.开始 is not None or status.结束 is not None:
-                verbose_str += f"  |"
-                if status.开始 is not None:
-                    verbose_str += f" 开始:{fmt(N.time, status.开始, olddiff=False)}"
-                if status.结束 is not None:
-                    verbose_str += f" 结束:{fmt(N.time, status.结束, olddiff=False)}"
-                verbose_str += "\n"
-            table_line.append([f"[{point_str}]", title, status.标题, *statuses])
-            statuses = [x for x in statuses if x != ""]
-            if statuses:
-                status_str = "(" + ", ".join(statuses) + ")"
-            else:
-                status_str = ""
-            report += f"- [{point_str}] {status.标题} {status_str}\n"
-            if verbose:
-                report += verbose_str
-            if status.描述 is not None:
-                report += indent(status.描述, "  ") + "\n\n"
-        return report, table_line
-
-    report_upcoming, table_upcoming = report_statuses_category(
-        "即将开始", category_upcoming
-    )
-    report_active, table_active = report_statuses_category("生效中", category_active)
-    report_expire, table_expire = report_statuses_category("已失效", category_expire)
-
-    report = ""
-    if short:
-        table_line: list[list[str]] = []
-        table_line.extend(table_active)
-        table_line.extend(table_upcoming)
-        table_line.extend(table_expire)
-        report += tabulate(table_line, tablefmt="plain")
-    else:
-        report += report_active
-        report += report_upcoming
-        report += report_expire
-    return report.strip()
-
-
-def report_hints(
-    N: ReportData,
-    P: Optional[ReportData],
-    *,
-    change_only: bool = False,
-    verbose: bool = False,
-) -> str:
-    category_hints: list[HintModel] = []
-
-    MIN_HINTS = 5
-    MIN_TIME = timedelta(days=1)
-    counts = 0
-    for hints in reversed(N.state.提示):
-        changed = False
-        if P is not None:
-            if hints.时间 and P.time < hints.时间 <= N.time:
-                changed = True
-        if (change_only and changed) or not change_only:
-            if verbose or hints.时间 >= N.time - MIN_TIME or counts < MIN_HINTS:
-                counts += 1
-                category_hints.append(hints)
-
-    def report_hints_category(hints: list[HintModel]) -> str:
-        if not hints:
-            return ""
-        report = ""
-        for hint in hints:
-            report += f"- {hint.标题} ({fmt(N.time, hint.时间, olddiff=False)})\n"
-            if hint.描述 is not None:
-                report += indent(hint.描述, "  ") + "\n\n"
-        return report
-
-    report = report_hints_category(category_hints)
-    return report.strip()

@@ -45,18 +45,6 @@ class ProgressModel(BaseModel):
     描述: Optional[str] = None
 
 
-class StatusModel(AppendOnly):
-    model_config = ConfigDict(extra="forbid")
-    名称: str
-    时间: datetime
-    # ---
-    标题: str
-    描述: Optional[str] = None
-    点数: Optional[int] = None  # 点数为None意味着这是一个“取消之前状态”的记录。
-    开始: Optional[datetime] = None
-    结束: Optional[datetime] = None
-
-
 class TodoModel(AppendOnly):
     model_config = ConfigDict(extra="forbid")
     名称: str
@@ -69,14 +57,6 @@ class TodoModel(AppendOnly):
     开始: Optional[datetime] = None
     结束: Optional[datetime] = None
     完成: Optional[datetime] = None
-
-
-class HintModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    时间: datetime
-    # ---
-    标题: str
-    描述: Optional[str] = None
 
 
 class WorktimeModel(BaseModel):

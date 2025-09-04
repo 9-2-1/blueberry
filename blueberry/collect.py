@@ -8,9 +8,7 @@ from .models import (
     DeleteModel,
     TaskModel,
     ProgressModel,
-    StatusModel,
     TodoModel,
-    HintModel,
     WorktimeModel,
     PickerModel,
 )
@@ -21,9 +19,7 @@ from .parser import Data
 class State(BaseModel):
     任务: dict[str, TaskModel]
     进度: dict[str, list[ProgressModel]]
-    状态: dict[str, StatusModel]
     待办事项: dict[str, TodoModel]
-    提示: list[HintModel]
     工作时段: list[WorktimeModel]
     选择排序偏好: list[PickerModel]
 
@@ -58,18 +54,11 @@ def collect_progress(
     return state
 
 
-def collect_hints(lines: list[HintModel], now_time: datetime) -> list[HintModel]:
-    lines = sorted(lines, key=lambda x: x.时间)
-    return [x for x in lines if x.时间 <= now_time]
-
-
 def collect_state(data: Data, now_time: datetime) -> State:
     return State(
         任务=collect_lines(data.任务, now_time),
         进度=collect_progress(data.进度, now_time),
-        状态=collect_lines(data.状态, now_time),
         待办事项=collect_lines(data.待办事项, now_time),
-        提示=collect_hints(data.提示, now_time),
         工作时段=data.工作时段,
         选择排序偏好=data.选择排序偏好,
     )

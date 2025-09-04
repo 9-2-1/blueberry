@@ -41,11 +41,9 @@ class TaskStats:
 @dataclass
 class StateStats:
     Goldie点数: int
-    任务点数: int
+    长期任务点数: int
     任务统计: dict[str, TaskStats]
-    状态点数: int
-    状态生效: list[str]
-    其他任务点数: int
+    短期任务点数: int
     其他任务生效: list[str]
     总每日用时: timedelta
 
@@ -250,27 +248,11 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         if stats.点数 is not None:
             任务点数 += stats.点数
 
-    # 状态点数
-    状态点数 = 0
-    状态生效: list[str] = []
-    for status in now_state.状态.values():
-        if isdisabled(status.名称, now_state.选择排序偏好):
-
-            continue
-        if status.点数 is None:
-            continue
-        if status.开始 is not None and status.开始 > now_time:
-            continue
-        if status.结束 is not None and status.结束 < now_time:
-            continue
-        状态点数 += status.点数
-        状态生效.append(status.名称)
-
     # 其他任务点数
     其他任务点数 = 0
     其他任务生效: list[str] = []
     for todo in now_state.待办事项.values():
-        if isdisabled(status.名称, now_state.选择排序偏好):
+        if isdisabled(todo.名称, now_state.选择排序偏好):
 
             continue
         if (
@@ -281,14 +263,12 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             其他任务点数 += todo.点数
             其他任务生效.append(todo.名称)
 
-    Goldie点数 = 任务点数 + 状态点数 + 其他任务点数
+    Goldie点数 = 任务点数 + 其他任务点数
     return StateStats(
         Goldie点数=Goldie点数,
-        任务点数=任务点数,
+        长期任务点数=任务点数,
         任务统计=任务统计,
-        状态点数=状态点数,
-        状态生效=状态生效,
-        其他任务点数=其他任务点数,
+        短期任务点数=其他任务点数,
         其他任务生效=其他任务生效,
         总每日用时=总每日用时,
     )
