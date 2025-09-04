@@ -237,24 +237,16 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         if tot_speed is not None:
             总每日用时 = tot_speed.每日用时
     for name, stats in 任务统计.items():
-        if stats.标记 == "=":
-            end_time = now_state.任务[name].结束
-            if end_time > now_time:
-                # 提前完成的奖励
-                stats.点数 = math.floor(
-                    100 * workdays(now_time, end_time, worktime) + 0.5
-                )
+        if stats.预计 is not None:
+            # 使用推荐用时作为总每日用时来估计点数
+            stats.点数 = math.floor(stats.预计.差距 / 推荐用时 * 100 + 0.5)
         else:
-            if stats.预计 is not None:
-                # 使用推荐用时作为总每日用时来估计点数
-                stats.点数 = math.floor(stats.预计.差距 / 推荐用时 * 100 + 0.5)
-            else:
-                start_time = now_state.任务[name].开始
-                if now_time > start_time:
-                    # 延迟开始的惩罚
-                    stats.点数 = math.floor(
-                        workdays(start_time, now_time, worktime) * -100 + 0.5
-                    )
+            start_time = now_state.任务[name].开始
+            if now_time > start_time:
+                # 延迟开始的惩罚
+                stats.点数 = math.floor(
+                    workdays(start_time, now_time, worktime) * -100 + 0.5
+                )
         if stats.点数 is not None:
             任务点数 += stats.点数
 

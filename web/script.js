@@ -10,7 +10,7 @@ const colorMap = {
 };
 
 function updatePoints() {
-  const point_thresholds = [-500, -200, 0, 200, 500];
+  const point_thresholds = [-100, -50, 0, 50, 100];
   const rating_lists = ["D", "C", "B", "A", "AA", "AAA"];
   fetch("get_points", { method: "get" })
     .then((response) => {

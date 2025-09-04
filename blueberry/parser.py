@@ -82,6 +82,7 @@ def load_data(workbook: str) -> Data:
     待办事项 = parse_append_only_table(wb["待办事项"], TodoModel)
     提示 = parse_model_table(wb["提示"], HintModel)
     工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
+    选择排序偏好: list[PickerModel] = []
     if "工作时段" in wb.sheetnames:
         工作时段 = parse_model_table(wb["工作时段"], WorktimeModel)
     if "选择排序偏好" in wb.sheetnames:
