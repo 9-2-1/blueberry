@@ -128,7 +128,7 @@ def main() -> None:
         with open(f"{args.output}", "w", encoding="utf-8") as f:
             f.write(report)
 
-    print(report, end="")
+    print(report)
 
 
 if __name__ == "__main__":

@@ -120,7 +120,7 @@ def colorline(
     table_line: list[str], color: int, skip: tuple[int, ...] = ()
 ) -> list[str]:
     return [
-        f"{ESC}[3{color}m{item}{ESC}[0m" if i not in skip else item
+        f"{ESC}[3{color}m{item}{ESC}[37m" if i not in skip else item
         for i, item in enumerate(table_line)
     ]
 
@@ -286,13 +286,10 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         "",
         "名称",
         "|",
-        "点数",
-        "变化",
-        "负载",
-        "变化",
         "用时",
         "完成",
-        "剩余",
+        "点数",
+        "变化",
         "剩余时间",
     ]
     最大负载 = 0.0
@@ -316,18 +313,15 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数 += nstat1.点数
             其它点数变化 += nstat1.点数 - pstat1.点数
             continue
-        # ["", "名称", "|", "点数", "变化", "负载", "变化", "用时", "完成", "剩余", "剩余时间"]
+        # ["", "名称", "|", "用时", "完成", "点数", "变化", "剩余时间"]
         table_line = [
             LONG_RUNNING if nstat1.用时 != pstat1.用时 else LONG_WAITING,
             ntask1.名称,
             "|",
-            fmt(nstat1.点数),
-            fmt(nstat1.点数 - pstat1.点数, pos=True),
-            fmt(nstat1.负载程度, p2=True),
-            fmt(nstat1.负载程度 - pstat1.负载程度, p2=True, pos=True),
             fmt(nstat1.用时 - pstat1.用时),
             fmt(nstat1.进度 - pstat1.进度),
-            fmt(ntask1.总数 - nstat1.进度),
+            fmt(nstat1.点数),
+            fmt(nstat1.点数 - pstat1.点数, pos=True),
             (
                 fmt(ntask1.最晚结束 - N.time)
                 if nstat1.进度 > 0
@@ -358,18 +352,15 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数 += nstat2.点数
             其它点数变化 += nstat2.点数 - pstat2.点数
             continue
-        # ["", "名称", "|", "点数", "变化", "负载", "变化", "用时", "完成", "剩余", "剩余时间"]
+        # ["", "名称", "|", "用时", "完成", "点数", "变化", "剩余时间"]
         table_line = [
             SHORT_RUNNING if nstat2.用时 != pstat2.用时 else SHORT_WAITING,
             ntask2.名称,
             "|",
+            fmt(nstat2.用时 - pstat2.用时),
+            "√" if ntask2.完成 is not None else "",
             fmt(nstat2.点数),
             fmt(nstat2.点数 - pstat2.点数, pos=True),
-            fmt(nstat2.负载程度, p2=True),
-            fmt(nstat2.负载程度 - pstat2.负载程度, p2=True, pos=True),
-            fmt(nstat2.用时 - pstat2.用时),
-            fmt(nstat2.用时),
-            fmt(ntask2.预计用时 - nstat2.用时),
             fmt(ntask2.最晚结束 - N.time),
         ]
         总用时 += nstat2.用时 - pstat2.用时
