@@ -1,4 +1,5 @@
 @echo off
+title blueberry live
 chcp 65001 > nul
 
 :read

@@ -10,13 +10,13 @@ from .collect import collect_state
 from .statistic import statistic
 
 # 设置中文字体
-plt.rcParams["font.family"] = ["SimHei", "WenQuanYi Micro Hei", "Heiti TC"]
+plt.rcParams["font.family"] = ["SimHei"]
 plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 
 
 def get_goldie_points_loads_history(
     days: int = 30, data_file: str = "data.xlsx"
-) -> List[Tuple[datetime, int, float]]:
+) -> List[Tuple[datetime, int, float, float]]:
     """
     获取近 days 天的 Goldie 点数历史数据，采样精度为30分钟每次
 
@@ -44,7 +44,14 @@ def get_goldie_points_loads_history(
         state = collect_state(data, current_time)
         try:
             stats = statistic(state, current_time)
-            history.append((current_time, stats.Goldie点数, stats.负载))
+            history.append(
+                (
+                    current_time,
+                    stats.Goldie点数,
+                    stats.负载,
+                    stats.总每日平均用时 / 推荐用时,
+                )
+            )
         except Exception as e:
             print(f"{current_time}: {e}")
             traceback.print_exc()
@@ -91,17 +98,18 @@ def plot_goldie_points(history: List[Tuple[datetime, int]]) -> None:
     plt.savefig("goldie_points_trend.png", dpi=300)
 
 
-def plot_loads(history: List[Tuple[datetime, float]]) -> None:
+def plot_loads(history: List[Tuple[datetime, float, float]]) -> None:
     """
     绘制负载变化折线图
 
     Args:
         history: 包含 (日期, 负载) 的列表
     """
-    dates, loads = zip(*history)
+    dates, loads, outs = zip(*history)
 
     plt.figure(figsize=(12, 6))
-    plt.plot(dates, loads, linestyle="-", color="blue", linewidth=2)
+    plt.plot(dates, loads, linestyle="-", color="green", linewidth=2)
+    plt.plot(dates, outs, linestyle="-", color="blue", linewidth=2)
     plt.plot(dates, [1 for x in loads], linestyle="--", color="red", linewidth=2)
 
     # 设置标题和坐标轴标签
@@ -130,7 +138,7 @@ def main() -> None:
     print("正在生成近30天 Goldie 点数变化折线图 (30分钟采样)...")
     history = get_goldie_points_loads_history(30, "记录.xlsx")
     plot_goldie_points([(x[0], x[1]) for x in history])
-    plot_loads([(x[0], x[2]) for x in history])
+    plot_loads([(x[0], x[2], x[3]) for x in history])
 
 
 if __name__ == "__main__":
