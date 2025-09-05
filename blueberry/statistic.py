@@ -243,7 +243,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         差距 = 预计可用时间 - 预计需要时间
         点数 = 0
         if 进度 > 0:
-            点数 = math.floor(差距 / timedelta(hours=6.5) * 100 + 0.5)
+            点数 = math.floor(差距 / 推荐用时 * 100 + 0.5)
         elif now_time > task1.最晚开始:
             点数 = math.floor(workdays(now_time, task1.最晚开始, worktime) * 100 + 0.5)
         长期任务统计[task1.名称] = LongTaskStats(
@@ -276,7 +276,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         elif task2.完成 is not None:
             用时 = task2.预计用时
         点数 = 0
-        ptsu = task2.预计用时 / timedelta(hours=6.5) * 100
+        ptsu = task2.预计用时 / 推荐用时 * 100
         pts = 0.0
         if now_time > task2.最晚结束:
             pts = -ptsu
@@ -363,7 +363,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         if tot_worktime == 0:
             load = 0.0
         else:
-            load = (tot_timeneed / timedelta(hours=6.5)) / tot_worktime
+            load = (tot_timeneed / 推荐用时) / tot_worktime
         loads.append(load)
     load_max = 0.0
     load_max_node = (datetime.now(), timedelta(0))

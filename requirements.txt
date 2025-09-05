@@ -16,3 +16,6 @@ dateparser
 
 # plotting
 matplotlib
+
+# zoneinfo
+tzdata
