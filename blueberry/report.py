@@ -1,16 +1,16 @@
-from typing import TypeVar, overload, Optional, Iterable
+from typing import TypeVar, overload, Optional, Iterable, Union, Literal
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from textwrap import indent
+import warnings
 
 import wcwidth  # type: ignore
 
 # 用于tabulate的宽度计算
-from tabulate import tabulate
+from tabulate import tabulate, SEPARATING_LINE
 
 from .config import 推荐用时
 from .models import AppendOnly, PickerModel
-
 from .collect import State
 from .statistic import StateStats, isdisabled
 
@@ -19,7 +19,7 @@ FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
 
 
 @overload
-def fmt(x: FmtT, *, pos: bool = False, timesign: bool = True) -> str: ...
+def fmt(x: FmtT, *, pos: bool = False) -> str: ...
 
 
 @overload
@@ -29,7 +29,6 @@ def fmt(
     *,
     pos: bool = False,
     olddiff: bool = True,
-    timesign: bool = True,
 ) -> str: ...
 
 
@@ -39,7 +38,6 @@ def fmt(
     *,
     pos: bool = False,
     olddiff: bool = True,
-    timesign: bool = True,
 ) -> str:
     if y is None:
         if isinstance(x, int):
@@ -61,36 +59,60 @@ def fmt(
             sign = ""
             if x >= timedelta(0):
                 if pos:
-                    if timesign:
-                        sign = "后"
-                    else:
-                        sign = "+"
+                    sign = "+"
                 v = x
             else:
-                if timesign:
-                    sign = "前"
-                else:
-                    sign = "-"
+                sign = "-"
                 v = -x
             if v > timedelta(days=7):
-                vstr = f"{v // timedelta(days=1)}天"
+                vstr = f"{v // timedelta(days=1)}d"
             elif v > timedelta(days=1):
-                vstr = f"{v // timedelta(days=1)}天{v // timedelta(hours=1) % 24}时"
+                vstr = f"{v // timedelta(days=1)}d{v // timedelta(hours=1) % 24}h"
             elif v > timedelta(hours=1):
-                vstr = f"{v // timedelta(hours=1)}时{v // timedelta(minutes=1) % 60}分"
+                vstr = f"{v // timedelta(hours=1)}h{v // timedelta(minutes=1) % 60}m"
             else:
-                vstr = f"{v.seconds // 60}分钟"
-            return vstr + sign if timesign else sign + vstr
+                vstr = f"{v.seconds // 60}min"
+            return sign + vstr
         else:
             raise TypeError("未知类型")
     else:
         if olddiff:
-            return f"{fmt(x, pos=pos, timesign=timesign)}→{fmt(y, pos=pos, timesign=timesign)}"
+            return f"{fmt(x, pos=pos)} → {fmt(y, pos=pos)}"
         else:
             if isinstance(y, timedelta):
-                return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True, timesign=False)})"
+                return f"{fmt(y, pos=pos)}({fmt(y - x, pos=True)})"
             else:
-                return f"{fmt(y, pos=pos, timesign=timesign)}({fmt(y - x, pos=True)})"
+                return f"{fmt(y, pos=pos)}({fmt(y - x, pos=True)})"
+
+
+ESC = "\033"
+RED = 1
+GREEN = 2
+YELLOW = 3
+BLUE = 4
+MAGENTA = 5
+CYAN = 6
+WHITE = 7
+goldie_thresholds = [-100, -50, 0, 50, 100]
+goldie_levels = [MAGENTA, RED, YELLOW, GREEN, CYAN, BLUE]
+ACTIVE = "●"
+INACTIVE = "◯"
+
+
+def getcolor(goldie: int) -> int:
+    for i, threshold in enumerate(goldie_thresholds):
+        if goldie < threshold:
+            return goldie_levels[i]
+    return goldie_levels[-1]
+
+
+def colorline(
+    table_line: list[str], color: int, skip: tuple[int, ...] = ()
+) -> list[str]:
+    return [
+        f"{ESC}[3{color}m{item}{ESC}[0m" if i not in skip else item
+        for i, item in enumerate(table_line)
+    ]
 
 
 @dataclass
@@ -116,382 +138,138 @@ def prefer(items: Iterable[T], preference: list[PickerModel]) -> list[T]:
     return sorted_items
 
 
-def report_head(
-    N: ReportData,
-    P: Optional[ReportData],
-    Y: Optional[ReportData] = None,
-    *,
-    olddiff: bool = True,
-) -> str:
-    report = ""
-    if P is not None:
-        report += f"时间:{fmt(P.time, N.time, olddiff=True)}\n"
-        # 普通格式
-        report += f"Goldie点数:{fmt(P.stats.Goldie点数, N.stats.Goldie点数, olddiff=olddiff)} "
-        if Y is not None:
-            report += f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
-        report += f"(任务:{fmt(P.stats.长期任务点数, N.stats.长期任务点数, olddiff=olddiff, pos=True)}"
-        report += f" 其他:{fmt(P.stats.短期任务点数, N.stats.短期任务点数, olddiff=olddiff, pos=True)})\n"
-        report += f"近期平均每日用时:{fmt(P.stats.总每日用时, N.stats.总每日用时, olddiff=olddiff)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
-    else:
-        report += f"时间:{fmt(N.time)}\n"
-        # 普通对比格式
-        report += f"Goldie点数:{fmt(N.stats.Goldie点数)} "
-        if Y is not None:
-            report += f"今日:{fmt(N.stats.Goldie点数 - Y.stats.Goldie点数, pos=True)} "
-        report += f"(长期:{fmt(N.stats.长期任务点数)}"
-        report += f" 短期:{fmt(N.stats.短期任务点数)})\n"
-        report += f"近期平均每日用时:{fmt(N.stats.总每日用时)} (推荐时长的 {N.stats.总每日用时 / 推荐用时:.0%})"
-    return report
-
-
 def report_worktime(N: ReportData) -> str:
     worktime = N.state.工作时段
     if not worktime:
-        return "未设定工作时段。"
-    report = "设定的工作时段:"
+        return "工作时段: 未设定"
+    report = "工作时段:"
     for workt in worktime:
         report += f" {workt.开始.hour:02d}:{workt.开始.minute:02d}~{workt.结束.hour:02d}:{workt.结束.minute:02d}"
     return report.strip()
 
 
-def report_main_tasks(
+def report_long_tasks(
     N: ReportData,
-    P: Optional[ReportData],
-    Y: Optional[ReportData] = None,
-    *,
-    short: bool = False,
-    olddiff: bool = True,
-    change_only: bool = False,
-    minor_change_only: bool = False,
-    upcoming: Optional[float] = None,
-    verbose: bool = False,
 ) -> str:
-    category_upcoming: list[str] = []
-    category_running: list[str] = []  # 包括超时任务
-    category_done: list[str] = []
-    category_expire: list[str] = []
-    for task in prefer(N.state.任务.values(), N.state.选择排序偏好):
-        # change_only category
-        tstat = N.stats.任务统计[task.名称]
-        changed = False
-        minor_changed = False
-        if P is not None:
-            ptask = P.state.任务.get(task.名称)
-            if ptask != task:
-                changed = True
-            else:
-                pstat = P.stats.任务统计[task.名称]
-                if pstat.进度 != tstat.进度:
-                    minor_changed = True
-                elif pstat.用时 != tstat.用时:
-                    minor_changed = True
-                elif P.time < task.开始 <= N.time:
-                    minor_changed = True
-                elif P.time < task.结束 <= N.time:
-                    minor_changed = True
-        category__ = None
-        if task.总数 is not None and tstat.进度 >= task.总数:
-            if N.time >= task.结束:
-                if changed or minor_changed:
-                    category__ = category_expire
-            else:
-                category__ = category_done
-        elif tstat.进度 != 0 or N.time >= task.开始:
-            category__ = category_running
-        elif upcoming is None or task.开始 < N.time + timedelta(days=upcoming):
-            category__ = category_upcoming
-        if category__ is not None:
-            if (
-                (change_only and changed)
-                or (minor_change_only and minor_changed)
-                or not (change_only or minor_change_only)
-            ):
-                category__.append(task.名称)
-
-    def report_main_tasks_category(
-        title: str, task_names: list[str], *, is_upcoming: bool = False
-    ) -> tuple[str, list[list[str]]]:
-        if not task_names:
-            return "", []
-        report = ""
-        report += f"{title}:\n"
-        table_line: list[list[str]] = []
-        for task_name in task_names:
-            verbose_str = ""
-            task = N.state.任务[task_name]
-            tstat = N.stats.任务统计[task_name]
-            t点数 = tstat.点数 if tstat.点数 is not None else 0
-            statuses = []
-            if P is not None:
-                ptask = P.state.任务.get(task_name)
-                pstat = P.stats.任务统计.get(task_name)
-                p进度 = pstat.进度 if pstat is not None else 0
-                p用时 = pstat.用时 if pstat is not None else timedelta(0)
-                p点数 = (
-                    pstat.点数 if pstat is not None and pstat.点数 is not None else 0
-                )
-                if ptask != task:
-                    verbose_str += f"  | 更新于{fmt(N.time - task.时间)}前\n"
-                point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
-                if task.总数 is not None:
-                    statuses.append(
-                        f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
-                    )
-                else:
-                    statuses.append(f"完成{fmt(p进度, tstat.进度, olddiff=olddiff)}")
-                if Y is None or Y.time != P.time:
-                    # 如果不排除的话会有两列重复
-                    statuses.append(
-                        f"用时{fmt(tstat.用时 - p用时, timesign=False, pos=True)}"
-                    )
-            else:
-                point_str = f"点数{fmt(t点数, pos=True)}"
-                if task.总数 is not None:
-                    statuses.append(
-                        f"完成{fmt(tstat.进度)}/{fmt(task.总数)} ({tstat.进度/task.总数:.0%})"
-                    )
-                else:
-                    statuses.append(f"完成{fmt(tstat.进度)}")
-            # 今日...
-            if Y is not None:
-                ystat = Y.stats.任务统计.get(task_name)
-                y进度 = ystat.进度 if ystat is not None else 0
-                y用时 = ystat.用时 if ystat is not None else timedelta(0)
-                y点数 = (
-                    ystat.点数 if ystat is not None and ystat.点数 is not None else 0
-                )
-                statuses.append(f"今日:点数{fmt(t点数 - y点数, pos=True)}")
-                statuses.append(f"完成{fmt(tstat.进度 - y进度)}")
-                statuses.append(f"用时{fmt(tstat.用时 - y用时, timesign=False)}")
-
-            verbose_str += f"  | 开始:{fmt(N.time, task.开始, olddiff=False)} 结束:{fmt(N.time, task.结束, olddiff=False)}\n"
-            if tstat.速度 is not None:
-                verbose_str += f"  | 近期完成:{fmt(tstat.速度.tot_progress)} 近期用时:{fmt(tstat.速度.tot_time)} 近期工作天数:{fmt(tstat.速度.tot_dayspan)}天\n"
-                verbose_str += f"  | 近期速度:{fmt(tstat.速度.速度)}/小时 近期每日平均用时:{fmt(tstat.速度.每日用时)}\n"
-            if tstat.预计 is not None:
-                verbose_str += f"  | 预计完成时间:{fmt(tstat.预计.预计完成时间)} 预计可用时间:{fmt(tstat.预计.预计可用时间)} 差距:{fmt(tstat.预计.差距, timesign=False, pos=True)}\n"
-            if is_upcoming:
-                statuses.append(f"{fmt(task.开始 - N.time, pos=True)}开始")
-            else:
-                statuses.append(f"{fmt(task.结束 - N.time, pos=True)}到期")
-            statuses.append(tstat.进度描述 if tstat.进度描述 is not None else "")
-            table_line.append([f"[{point_str}]", title, task.标题, *statuses])
-            statuses = [x for x in statuses if x != ""]
-            if statuses:
-                status_str = "(" + ", ".join(statuses) + ")"
-            else:
-                status_str = ""
-            report += f"- [{point_str}] {task.标题} {status_str}\n"
-            if verbose:
-                report += verbose_str
-            if task.描述 is not None:
-                report += indent(task.描述, "  ") + "\n\n"
-        return report, table_line
-
-    report_upcoming, table_upcoming = report_main_tasks_category(
-        "即将开始", category_upcoming, is_upcoming=True
+    table_headers = [
+        "",
+        "长期任务",
+        "|",
+        "点数",
+        "负载",
+        "完成",
+        "剩余",
+        "剩余时间",
+        "预计用时",
+        "每日平均用时",
+    ]
+    最大负载 = 0.0
+    总预计时间 = timedelta(0)
+    table_lines: list[Union[list[str], str]] = []
+    for task in prefer(N.state.长期任务.values(), N.state.选择排序偏好):
+        tstat = N.stats.长期任务统计[task.名称]
+        # 跳过完成0分项
+        if tstat.进度 >= task.总数 and N.time >= task.最晚结束:
+            continue
+        # ['', '名称', '|', '点数', '负载', '完成', '剩余', '剩余时间', '预计用时', '每日平均用时']
+        table_line = [
+            ACTIVE if tstat.进度 > 0 else INACTIVE,
+            task.名称,
+            "|",
+            fmt(tstat.点数),
+            f"{tstat.负载程度:.2f}" + ("*" if tstat.负载关键节点 else ""),
+            fmt(tstat.进度),
+            fmt(task.总数 - tstat.进度),
+            (
+                fmt(task.最晚结束 - N.time)
+                if tstat.进度 > 0
+                else fmt(task.最晚开始 - N.time) + "开始"
+            ),
+            fmt(tstat.预计需要时间),
+            fmt(tstat.每日用时),
+        ]
+        最大负载 = max(最大负载, tstat.负载程度)
+        总预计时间 += tstat.预计需要时间
+        table_line = colorline(
+            table_line, getcolor(tstat.点数 - (0 if tstat.进度 > 0 else 1)), skip=(2,)
+        )
+        table_lines.append(table_line)
+    table_lines.append(SEPARATING_LINE)
+    total_line = [
+        "",
+        "总数",
+        "|",
+        fmt(N.stats.长期任务点数),
+        f"{最大负载:.2f}",
+        "",
+        "",
+        "",
+        fmt(总预计时间),
+        fmt(N.stats.总每日平均用时),
+    ]
+    total_line = colorline(
+        total_line, getcolor(N.stats.长期任务点数 - (0 if tstat.进度 > 0 else 1)), skip=(2,)
     )
-    report_running, table_running = report_main_tasks_category(
-        "进行中", category_running
-    )
-    report_done, table_done = report_main_tasks_category("已完成", category_done)
-    report_expire, table_expire = report_main_tasks_category("已结束", category_expire)
+    table_lines.append(total_line)
 
-    report = ""
-    if short:
-        table_line: list[list[str]] = []
-        table_line.extend(table_running)
-        table_line.extend(table_upcoming)
-        table_line.extend(table_done)
-        table_line.extend(table_expire)
-        report += tabulate(table_line, tablefmt="plain") + "\n\n"
-    else:
-        report += report_running
-        report += report_upcoming
-        report += report_done
-        report += report_expire
-    return report.strip()
+    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    return report
 
 
-def report_daily_time(
+def report_short_tasks(
     N: ReportData,
-    P: Optional[ReportData],
-    Y: Optional[ReportData],
-    *,
-    olddiff: bool = False,
 ) -> str:
-    n今日用时 = timedelta(0)
-    p今日用时 = timedelta(0)
-    if Y is not None:
-        if P is not None and N.time.date() != P.time.date():
-            raise ValueError("不能对比不在同一天的每日进度")
-        for task in prefer(N.state.任务.values(), N.state.选择排序偏好):
-            tstat = N.stats.任务统计[task.名称]
-            ystat = Y.stats.任务统计.get(task.名称)
-            y用时 = ystat.用时 if ystat is not None else timedelta(0)
-            n今日用时 += tstat.用时 - y用时
-            if P is not None:
-                pstat = P.stats.任务统计.get(task.名称)
-                p用时 = pstat.用时 if pstat is not None else timedelta(0)
-                p今日用时 += p用时 - y用时
-    if Y is not None:
-        if P is not None and P.time != Y.time:
-            report = f"今日用时: {fmt(p今日用时, n今日用时, olddiff=olddiff)} (推荐时长的 {n今日用时 / 推荐用时:.0%})"
-        else:
-            report = (
-                f"今日用时: {fmt(n今日用时)} (推荐时长的 {n今日用时 / 推荐用时:.0%})"
-            )
-    return report.strip()
-
-
-def report_todo_tasks(
-    N: ReportData,
-    P: Optional[ReportData],
-    *,
-    short: bool = False,
-    change_only: bool = False,
-    minor_change_only: bool = False,
-    upcoming: Optional[float] = None,
-    verbose: bool = False,
-    olddiff: bool = False,
-) -> str:
-    category_upcoming: list[str] = []
-    category_running: list[str] = []  # 包括超时任务
-    category_done: list[str] = []
-    category_expire: list[str] = []
-    category_cancel: list[str] = []
-    for todo in prefer(N.state.待办事项.values(), N.state.选择排序偏好):
-        changed = False
-        minor_changed = False
-        if P is not None:
-            ptodo = P.state.待办事项.get(todo.名称)
-            if ptodo != todo:
-                changed = True
-            elif todo.开始 is not None and P.time < todo.开始 <= N.time:
-                minor_changed = True
-            elif todo.结束 is not None and P.time < todo.结束 <= N.time:
-                minor_changed = True
-            elif (todo.名称 in N.stats.其他任务生效) != (
-                todo.名称 in P.stats.其他任务生效
-            ):
-                minor_changed = True
-        category__ = None
-        if todo.标记 is None:
-            if P is not None:
-                if changed or minor_changed:
-                    category__ = category_cancel
-        elif todo.名称 in N.stats.其他任务生效:
-            category__ = category_done
-        elif todo.完成 is not None:
-            if changed or minor_changed:
-                category__ = category_expire
-        elif todo.开始 is None or N.time >= todo.开始:
-            category__ = category_running
-        elif upcoming is None or (
-            todo.开始 is not None and todo.开始 < N.time + timedelta(days=upcoming)
-        ):
-            category__ = category_upcoming
-        if category__ is not None:
-            if (
-                (change_only and changed)
-                or (minor_change_only and minor_changed)
-                or not (change_only or minor_change_only)
-            ):
-                category__.append(todo.名称)
-
-    def report_todo_tasks_category(
-        title: str, todo_names: list[str], *, is_finished: bool = False
-    ) -> tuple[str, list[list[str]]]:
-        if not todo_names:
-            return "", []
-        report = ""
-        report += f"{title}:\n"
-        table_line: list[list[str]] = []
-        for todo_name in todo_names:
-            verbose_str = ""
-            todo = N.state.待办事项[todo_name]
-            t点数 = todo.点数
-            statuses = []
-            if P is not None:
-                ptodo = P.state.待办事项.get(todo_name)
-                if ptodo != todo:
-                    verbose_str += f"  | 更新于{fmt(N.time - todo.时间)}前\n"
-                p点数 = ptodo.点数 if ptodo is not None else 0
-                if p点数 != t点数:
-                    point_str = f"点数{fmt(p点数, t点数, olddiff=olddiff, pos=True)}"
-                else:
-                    point_str = f"点数{fmt(t点数, pos=True)}"
-            else:
-                point_str = f"点数{fmt(t点数, pos=True)}"
-            if todo.标记 == "+":
-                mode = "可选"
-            elif todo.标记 == "-":
-                mode = "等待"
-            elif todo.标记 == "*":
-                mode = "重要"
-            else:
-                mode = "取消"
-            if not is_finished:
-                point_str = f"预计{point_str}"
-            if todo.完成 is not None and N.time >= todo.完成:
-                statuses.append(f"{fmt(todo.完成 - N.time, pos=True)}完成")
-            elif todo.开始 is not None and N.time < todo.开始:
-                statuses.append(f"{fmt(todo.开始 - N.time, pos=True)}开始")
-            elif todo.结束 is not None:
-                statuses.append(f"{fmt(todo.结束 - N.time, pos=True)}到期")
-            else:
-                statuses.append("")
-            if todo.开始 is not None or todo.结束 is not None or todo.完成 is not None:
-                verbose_str += f"  |"
-                if todo.开始 is not None:
-                    verbose_str += f" 开始:{fmt(N.time, todo.开始, olddiff=False)}"
-                if todo.结束 is not None:
-                    verbose_str += f" 结束:{fmt(N.time, todo.结束, olddiff=False)}"
-                if todo.完成 is not None:
-                    verbose_str += f" 完成:{fmt(N.time, todo.完成, olddiff=False)}"
-                verbose_str += "\n"
-            table_line.append([f"[{point_str}]", title, mode, todo.标题, *statuses])
-            statuses = [x for x in statuses if x != ""]
-            if statuses:
-                status_str = "(" + ", ".join(statuses) + ")"
-            else:
-                status_str = ""
-            report += f"- [{point_str}] {todo.标题} {status_str}\n"
-            if verbose:
-                report += verbose_str
-            if todo.描述 is not None:
-                report += indent(todo.描述, "  ") + "\n\n"
-        return report, table_line
-
-    report_upcoming, table_upcoming = report_todo_tasks_category(
-        "即将开始", category_upcoming
+    table_lines: list[Union[list[str], str]] = []
+    table_headers = [
+        "",
+        "短期任务",
+        "|",
+        "点数",
+        "负载",
+        "用时",
+        "预计时间",
+        "剩余时间",
+    ]
+    最大负载 = 0.0
+    总用时 = timedelta(0)
+    总预计时间 = timedelta(0)
+    for task in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
+        # 跳过完成0分项
+        if task.完成 is not None and N.time >= task.完成 and N.time >= task.最晚结束:
+            continue
+        tstat = N.stats.短期任务统计[task.名称]
+        table_line = [
+            ACTIVE if task.完成 is not None else INACTIVE,
+            task.标题,
+            "|",
+            fmt(tstat.点数),
+            f"{tstat.负载程度:.2f}",
+            fmt(tstat.用时),
+            fmt(tstat.预计需要时间),
+            fmt(task.最晚结束 - N.time),
+        ]
+        最大负载 = max(最大负载, tstat.负载程度)
+        总用时 += tstat.用时
+        总预计时间 += tstat.预计需要时间
+        table_line = colorline(
+            table_line, getcolor(tstat.点数 - (0 if task.完成 else 1)), skip=(2,)
+        )
+        table_lines.append(table_line)
+    table_lines.append(SEPARATING_LINE)
+    total_line = [
+        "",
+        "总数",
+        "|",
+        fmt(N.stats.短期任务点数),
+        f"{最大负载:.2f}",
+        fmt(总用时),
+        fmt(总预计时间),
+        "",
+    ]
+    total_line = colorline(
+        total_line, getcolor(N.stats.短期任务点数 - (0 if task.完成 else 1)), skip=(2,)
     )
-    report_running, table_running = report_todo_tasks_category(
-        "进行中", category_running
-    )
-    report_done, table_done = report_todo_tasks_category(
-        "已完成", category_done, is_finished=True
-    )
-    report_cancel, table_cancel = report_todo_tasks_category("已取消", category_cancel)
-    report_expire, table_expire = report_todo_tasks_category(
-        "已失效", category_expire, is_finished=True
-    )
+    table_lines.append(total_line)
 
-    report = ""
-    if short:
-        table_line: list[list[str]] = []
-        table_line.extend(table_running)
-        table_line.extend(table_upcoming)
-        table_line.extend(table_done)
-        table_line.extend(table_cancel)
-        table_line.extend(table_expire)
-        report += tabulate(table_line, tablefmt="plain") + "\n\n"
-    else:
-        report += report_running
-        report += report_upcoming
-        report += report_done
-        report += report_cancel
-        report += report_expire
-    return report.strip()
-
+    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    return report

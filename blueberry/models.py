@@ -23,40 +23,34 @@ class DeleteModel(AppendOnly):
     时间: datetime
 
 
-class TaskModel(AppendOnly):
-    model_config = ConfigDict(extra="forbid")
+class LongTaskModel(AppendOnly):
     名称: str
     时间: datetime
     # ---
     标题: str
-    描述: Optional[str] = None
-    开始: datetime
-    结束: datetime
-    总数: Optional[float] = None
+    最晚结束: datetime
+    最晚开始: datetime
+    总数: float
 
 
 class ProgressModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     时间: datetime
     名称: str
     # ---
     进度: float = 0.0
     用时: timedelta = timedelta(0)
-    描述: Optional[str] = None
 
 
-class TodoModel(AppendOnly):
-    model_config = ConfigDict(extra="forbid")
+class ShortTaskModel(AppendOnly):
     名称: str
     时间: datetime
     # ---
-    标记: Optional[Literal["+", "*", "-"]] = None  # + 可选，* 重要，- 等待
     标题: str
-    描述: Optional[str] = None
-    点数: int = 0
-    开始: Optional[datetime] = None
-    结束: Optional[datetime] = None
+    最晚结束: datetime
+    预计用时: timedelta
+    最早开始: datetime
     完成: Optional[datetime] = None
+    用时: Optional[timedelta] = None
 
 
 class WorktimeModel(BaseModel):
@@ -65,7 +59,6 @@ class WorktimeModel(BaseModel):
 
 
 class PickerModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
     名称: str
     禁用: Optional[Literal["-"]] = None
 

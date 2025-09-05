@@ -1,5 +1,4 @@
-from datetime import datetime
-import os
+from datetime import timedelta
 import argparse
 
 import dateparser
@@ -9,11 +8,10 @@ from .collect import collect_state
 from .statistic import statistic
 from .webserver import live_server
 from .report import (
-    report_head,
+    fmt,
     report_worktime,
-    report_main_tasks,
-    report_daily_time,
-    report_todo_tasks,
+    report_long_tasks,
+    report_short_tasks,
     ReportData,
 )
 from .ctz_now import ctz_now
@@ -66,17 +64,7 @@ def main() -> None:
         type=dateparser.parse,
         help="当前时间(默认为现在)",
     )
-    # 格式
-    parser.add_argument("-c", "--changes", action="store_true", help="只显示变化")
-    parser.add_argument("-d", "--daily", action="store_true", help="显示今日完成")
-    parser.add_argument("-s", "--short", action="store_true", help="简单格式")
-    parser.add_argument(
-        "-S", "--short-and-changes", action="store_true", help="简单格式+主要变化"
-    )
-    parser.add_argument("-v", "--verbose", action="store_true", help="详细格式")
-    parser.add_argument(
-        "-u", "--upcoming-days", type=float, help="隐藏 UPCOMING_DAYS 天后开始的项目"
-    )
+    parser.add_argument("-d", "--daily", action="store_true", help="设置开始时间为今天零点")
     # 详细格式设定
     parser.add_argument(
         "-D",
@@ -84,7 +72,6 @@ def main() -> None:
         action="store_true",
         help="使用 旧→新 格式，不用 新(±变化) 格式",
     )
-    parser.add_argument("-I", "--no-info", action="store_true", help="不显示说明")
     parser.add_argument("-o", "--output", action="store", help="输出文件路径")
     args = parser.parse_args()
 
@@ -94,11 +81,12 @@ def main() -> None:
 
     data = load_data(args.workbook)
 
+    now_time = ctz_now()
     if args.time is not None:
         now_time = args.time
-    else:
-        now_time = ctz_now()
+
     yesterday_time = now_time.replace(hour=0, minute=0, second=0)
+
     if args.from_ is not None:
         prev_time = args.from_
     elif args.daily:
@@ -110,136 +98,18 @@ def main() -> None:
     now_stats = statistic(now_state, now_time)
     now_data = ReportData(now_time, now_state, now_stats)
 
-    yesterday_state = collect_state(data, yesterday_time)
-    yesterday_stats = statistic(yesterday_state, yesterday_time)
-    yesterday_data = ReportData(yesterday_time, yesterday_state, yesterday_stats)
-
-    prev_data = None
-    if prev_time is not None:
+    if prev_time:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
         prev_data = ReportData(prev_time, prev_state, prev_stats)
-
-    keyword = ""
-    if args.short:
-        keyword += "简单"
-    elif args.verbose:
-        keyword += "详细"
-    if args.changes:
-        keyword += "变化"
-    elif args.short_and_changes:
-        keyword += "简单与主要变化"
-    report = f"Blueberry {keyword}报告\n"
-    report += (
-        report_head(
-            now_data,
-            prev_data,
-            yesterday_data if args.daily else None,
-            olddiff=args.olddiff,
-        )
-        + "\n\n"
-    )
+    report = f"blueberry - {now_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report = f"需要的负载: {now_stats.负载:.2f} "
+    report += f"(检查点: {fmt(now_time, now_stats.负载检查时间, olddiff=False)}"
+    report += f" 预计消耗: {fmt(now_stats.负载预计用时)})\n"
+    report += f"近期平均用时: {fmt(now_stats.总每日平均用时)} (输出: {now_stats.总每日平均用时 / timedelta(hours=6.5):.2f})\n"
     report += report_worktime(now_data) + "\n\n"
-
-    report_main_tasks_strs: list[str] = []
-    if args.changes or args.short_and_changes:
-        report_main_tasks_strs.append(
-            report_main_tasks(
-                now_data,
-                prev_data,
-                yesterday_data if args.daily else None,
-                change_only=True,
-                verbose=args.verbose,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-        report_main_tasks_strs.append(
-            report_main_tasks(
-                now_data,
-                prev_data,
-                yesterday_data if args.daily else None,
-                minor_change_only=not args.short_and_changes,
-                short=True,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    else:
-        report_main_tasks_strs.append(
-            report_main_tasks(
-                now_data,
-                prev_data,
-                yesterday_data if args.daily else None,
-                verbose=args.verbose,
-                short=args.short,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    if args.daily:
-        report_main_tasks_strs.append(
-            report_daily_time(
-                now_data,
-                prev_data,
-                yesterday_data if args.daily else None,
-                olddiff=args.olddiff,
-            )
-        )
-    report_main_tasks_strs = [x for x in report_main_tasks_strs if x != ""]
-    if report_main_tasks_strs:
-        if args.changes:
-            report += "-- 主要任务变化 --\n"
-        else:
-            report += "-- 主要任务 --\n"
-        report += "\n\n".join(report_main_tasks_strs) + "\n\n"
-
-    report_todo_tasks_strs: list[str] = []
-    if args.changes or args.short_and_changes:
-        report_todo_tasks_strs.append(
-            report_todo_tasks(
-                now_data,
-                prev_data,
-                change_only=True,
-                verbose=args.verbose,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-        report_todo_tasks_strs.append(
-            report_todo_tasks(
-                now_data,
-                prev_data,
-                minor_change_only=not args.short_and_changes,
-                short=True,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    else:
-        report_todo_tasks_strs.append(
-            report_todo_tasks(
-                now_data,
-                prev_data,
-                verbose=args.verbose,
-                short=args.short,
-                upcoming=args.upcoming_days,
-                olddiff=args.olddiff,
-            )
-        )
-    report_todo_tasks_strs = [x for x in report_todo_tasks_strs if x != ""]
-    if report_todo_tasks_strs:
-        if args.changes:
-            report += "-- 其他任务变化 --\n"
-        else:
-            report += "-- 其他任务 --\n"
-        report += "\n\n".join(report_todo_tasks_strs) + "\n\n"
-
-    if not (args.short or args.changes or args.short_and_changes or args.no_info):
-        report += "-- 说明 --\n"
-        with open("blueberry说明.txt", "r", encoding="utf-8") as g:
-            report += g.read()
-
+    report += report_long_tasks(now_data) + "\n\n"
+    report += report_short_tasks(now_data) + "\n\n"
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:
             f.write(data.model_dump_json(indent=2))

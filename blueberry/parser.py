@@ -9,9 +9,9 @@ from openpyxl.worksheet.worksheet import Worksheet
 from .models import (
     AppendOnlyModel,
     DeleteModel,
-    TaskModel,
+    LongTaskModel,
     ProgressModel,
-    TodoModel,
+    ShortTaskModel,
     WorktimeModel,
     PickerModel,
 )
@@ -23,9 +23,9 @@ T = TypeVar("T")
 
 
 class Data(BaseModel):
-    任务: list[Union[TaskModel, DeleteModel]]
-    进度: list[ProgressModel]
-    待办事项: list[Union[TodoModel, DeleteModel]]
+    长期任务: list[Union[LongTaskModel, DeleteModel]]
+    长期进度: list[ProgressModel]
+    短期任务: list[Union[ShortTaskModel, DeleteModel]]
     工作时段: list[WorktimeModel] = [
         WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
     ]
@@ -72,9 +72,9 @@ def parse_append_only_table(
 
 def load_data(workbook: str) -> Data:
     wb = load_workbook(workbook)
-    任务 = parse_append_only_table(wb["任务"], TaskModel)
-    进度 = parse_model_table(wb["进度"], ProgressModel)
-    待办事项 = parse_append_only_table(wb["待办事项"], TodoModel)
+    长期任务 = parse_append_only_table(wb["长期任务"], LongTaskModel)
+    长期进度 = parse_model_table(wb["长期进度"], ProgressModel)
+    短期任务 = parse_append_only_table(wb["短期任务"], ShortTaskModel)
     工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
     选择排序偏好: list[PickerModel] = []
     if "工作时段" in wb.sheetnames:
@@ -82,9 +82,9 @@ def load_data(workbook: str) -> Data:
     if "选择排序偏好" in wb.sheetnames:
         选择排序偏好 = parse_model_table(wb["选择排序偏好"], PickerModel)
     return Data(
-        任务=任务,
-        进度=进度,
-        待办事项=待办事项,
+        长期任务=长期任务,
+        长期进度=长期进度,
+        短期任务=短期任务,
         工作时段=工作时段,
         选择排序偏好=选择排序偏好,
     )
