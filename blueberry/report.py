@@ -19,7 +19,7 @@ FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
 
 
 @overload
-def fmt(x: FmtT, *, pos: bool = False) -> str: ...
+def fmt(x: FmtT, *, pos: bool = False, p2: bool = False) -> str: ...
 
 
 @overload
@@ -28,6 +28,7 @@ def fmt(
     y: FmtT,
     *,
     pos: bool = False,
+    p2: bool = False,
     olddiff: bool = True,
 ) -> str: ...
 
@@ -37,6 +38,7 @@ def fmt(
     y: Optional[FmtT] = None,
     *,
     pos: bool = False,
+    p2: bool = False,
     olddiff: bool = True,
 ) -> str:
     if y is None:
@@ -46,10 +48,16 @@ def fmt(
             else:
                 return f"{x:d}"
         elif isinstance(x, float):
-            if pos:
-                return f"{x:+g}"
+            if p2:
+                if pos:
+                    return f"{x:+.2f}"
+                else:
+                    return f"{x:.2f}"
             else:
-                return f"{x:g}"
+                if pos:
+                    return f"{x:+g}"
+                else:
+                    return f"{x:g}"
         elif isinstance(x, datetime):
             if pos:
                 raise TypeError("datetime无符号")
@@ -94,9 +102,11 @@ MAGENTA = 5
 CYAN = 6
 WHITE = 7
 goldie_thresholds = [-100, -50, 0, 50, 100]
-goldie_levels = [MAGENTA, RED, YELLOW, GREEN, CYAN, BLUE]
-ACTIVE = "●"
-INACTIVE = "◯"
+goldie_levels = [RED, MAGENTA, YELLOW, GREEN, CYAN, BLUE]
+LONG_RUNNING = "●"
+LONG_WAITING = "◯"
+SHORT_RUNNING = "■"
+SHORT_WAITING = "□"
 
 
 def getcolor(goldie: int) -> int:
@@ -148,9 +158,7 @@ def report_worktime(N: ReportData) -> str:
     return report.strip()
 
 
-def report_long_tasks(
-    N: ReportData,
-) -> str:
+def report_long_tasks(N: ReportData) -> str:
     table_headers = [
         "",
         "长期任务",
@@ -171,9 +179,9 @@ def report_long_tasks(
         # 跳过完成0分项
         if tstat.进度 >= task.总数 and N.time >= task.最晚结束:
             continue
-        # ['', '名称', '|', '点数', '负载', '完成', '剩余', '剩余时间', '预计用时', '每日平均用时']
+        # ["", "名称", "|", "点数", "负载", "完成", "剩余", "剩余时间", "预计用时", "每日平均用时"]
         table_line = [
-            ACTIVE if tstat.进度 > 0 else INACTIVE,
+            LONG_RUNNING if tstat.进度 > 0 else LONG_WAITING,
             task.名称,
             "|",
             fmt(tstat.点数),
@@ -208,17 +216,16 @@ def report_long_tasks(
         fmt(N.stats.总每日平均用时),
     ]
     total_line = colorline(
-        total_line, getcolor(N.stats.长期任务点数 - (0 if tstat.进度 > 0 else 1)), skip=(2,)
+        total_line,
+        getcolor(N.stats.长期任务点数 - (0 if tstat.进度 > 0 else 1)),
+        skip=(2,),
     )
     table_lines.append(total_line)
-
     report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
     return report
 
 
-def report_short_tasks(
-    N: ReportData,
-) -> str:
+def report_short_tasks(N: ReportData) -> str:
     table_lines: list[Union[list[str], str]] = []
     table_headers = [
         "",
@@ -239,7 +246,7 @@ def report_short_tasks(
             continue
         tstat = N.stats.短期任务统计[task.名称]
         table_line = [
-            ACTIVE if task.完成 is not None else INACTIVE,
+            SHORT_RUNNING if tstat.用时 > timedelta(0) else SHORT_WAITING,
             task.标题,
             "|",
             fmt(tstat.点数),
@@ -270,6 +277,137 @@ def report_short_tasks(
         total_line, getcolor(N.stats.短期任务点数 - (0 if task.完成 else 1)), skip=(2,)
     )
     table_lines.append(total_line)
+    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    return report
 
+
+def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) -> str:
+    table_headers = [
+        "",
+        "名称",
+        "|",
+        "点数",
+        "变化",
+        "负载",
+        "变化",
+        "用时",
+        "完成",
+        "剩余",
+        "剩余时间",
+    ]
+    最大负载 = 0.0
+    最大负载p = 0.0
+    总用时 = timedelta(0)
+    其它点数 = 0
+    其它点数变化 = 0
+    table_lines: list[Union[list[str], str]] = []
+    for ntask1 in prefer(N.state.长期任务.values(), N.state.选择排序偏好):
+        nstat1 = N.stats.长期任务统计[ntask1.名称]
+        pstat1 = P.stats.长期任务统计[ntask1.名称]
+        # 跳过完成0分项
+        if pstat1.进度 >= ntask1.总数 and N.time >= ntask1.最晚结束:
+            continue
+        最大负载 = max(最大负载, nstat1.负载程度)
+        最大负载p = max(最大负载p, pstat1.负载程度)
+        if hide_decay and nstat1.用时 == pstat1.用时:
+            其它点数 += nstat1.点数
+            其它点数变化 += nstat1.点数 - pstat1.点数
+            continue
+        # ["", "名称", "|", "点数", "变化", "负载", "变化", "用时", "完成", "剩余", "剩余时间"]
+        table_line = [
+            LONG_RUNNING if nstat1.用时 != pstat1.用时 else LONG_WAITING,
+            ntask1.名称,
+            "|",
+            fmt(nstat1.点数),
+            fmt(nstat1.点数 - pstat1.点数, pos=True),
+            fmt(nstat1.负载程度, p2=True) + ("*" if nstat1.负载关键节点 else ""),
+            fmt(nstat1.负载程度 - pstat1.负载程度, p2=True, pos=True),
+            fmt(nstat1.用时 - pstat1.用时),
+            fmt(nstat1.进度 - pstat1.进度),
+            fmt(ntask1.总数 - nstat1.进度),
+            (
+                fmt(ntask1.最晚结束 - N.time)
+                if nstat1.进度 > 0
+                else fmt(ntask1.最晚开始 - N.time) + "开始"
+            ),
+        ]
+        总用时 += nstat1.用时 - pstat1.用时
+        table_line = colorline(
+            table_line, getcolor(nstat1.点数 - (0 if nstat1.进度 > 0 else 1)), skip=(2,)
+        )
+        table_lines.append(table_line)
+    for ntask2 in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
+        nstat2 = N.stats.短期任务统计[ntask2.名称]
+        pstat2 = P.stats.短期任务统计[ntask2.名称]
+        # 跳过完成0分项
+        if (
+            ntask2.完成 is not None
+            and N.time >= ntask2.完成
+            and N.time >= ntask2.最晚结束
+        ):
+            continue
+        最大负载 = max(最大负载, nstat2.负载程度)
+        最大负载p = max(最大负载p, pstat2.负载程度)
+        if hide_decay and nstat2.用时 == pstat2.用时:
+            其它点数 += nstat2.点数
+            其它点数变化 += nstat2.点数 - pstat2.点数
+            continue
+        # ["", "名称", "|", "点数", "变化", "负载", "变化", "用时", "完成", "剩余", "剩余时间"]
+        table_line = [
+            SHORT_RUNNING if nstat2.用时 != pstat2.用时 else SHORT_WAITING,
+            ntask2.名称,
+            "|",
+            fmt(nstat2.点数),
+            fmt(nstat2.点数 - pstat2.点数, pos=True),
+            fmt(nstat2.负载程度, p2=True) + ("*" if nstat2.负载关键节点 else ""),
+            fmt(nstat2.负载程度 - pstat2.负载程度, p2=True, pos=True),
+            fmt(nstat2.用时 - pstat2.用时),
+            fmt(nstat2.用时),
+            fmt(ntask2.预计用时 - nstat2.用时),
+            fmt(ntask2.最晚结束 - N.time),
+        ]
+        总用时 += nstat2.用时 - pstat2.用时
+        table_line = colorline(
+            table_line,
+            getcolor(nstat2.点数 - (0 if ntask2.完成 is not None else 1)),
+            skip=(2,),
+        )
+        table_lines.append(table_line)
+    table_lines.append(SEPARATING_LINE)
+    if hide_decay:
+        total_line = [
+            "",
+            "其它",
+            "|",
+            fmt(其它点数),
+            fmt(其它点数变化),
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+        ]
+        total_line = colorline(total_line, getcolor(其它点数), skip=(2,))
+        table_lines.append(total_line)
+    total_line = [
+        "",
+        "总数",
+        "|",
+        fmt(N.stats.Goldie点数),
+        fmt(N.stats.Goldie点数 - P.stats.Goldie点数, pos=True),
+        fmt(最大负载, p2=True),
+        fmt(最大负载 - 最大负载p, p2=True, pos=True),
+        fmt(总用时),
+        "",
+        "",
+        "",
+    ]
+    total_line = colorline(
+        total_line,
+        getcolor(N.stats.长期任务点数 - (0 if nstat1.进度 > 0 else 1)),
+        skip=(2,),
+    )
+    table_lines.append(total_line)
     report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
     return report

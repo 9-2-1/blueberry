@@ -12,6 +12,7 @@ from .report import (
     report_worktime,
     report_long_tasks,
     report_short_tasks,
+    report_tasks_diff,
     ReportData,
 )
 from .ctz_now import ctz_now
@@ -64,8 +65,16 @@ def main() -> None:
         type=dateparser.parse,
         help="当前时间(默认为现在)",
     )
-    parser.add_argument("-d", "--daily", action="store_true", help="设置开始时间为今天零点")
+    parser.add_argument(
+        "-d", "--daily", action="store_true", help="设置开始时间为今天零点"
+    )
     # 详细格式设定
+    parser.add_argument(
+        "-c",
+        "--change",
+        action="store_true",
+        help="只显示进度变化",
+    )
     parser.add_argument(
         "-D",
         "--olddiff",
@@ -98,18 +107,20 @@ def main() -> None:
     now_stats = statistic(now_state, now_time)
     now_data = ReportData(now_time, now_state, now_stats)
 
+    report = f"blueberry - {now_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+    report += f"需要的负载: {fmt(now_stats.负载, p2=True)} "
+    report += f"(检查点: {fmt(now_time, now_stats.负载检查时间, olddiff=False)}"
+    report += f" 预计消耗: {fmt(now_stats.负载预计用时)})\n"
+    report += f"近期平均用时: {fmt(now_stats.总每日平均用时)} (输出: {now_stats.总每日平均用时 / timedelta(hours=6.5):.2f})\n\n"
     if prev_time:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
         prev_data = ReportData(prev_time, prev_state, prev_stats)
-    report = f"blueberry - {now_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report = f"需要的负载: {now_stats.负载:.2f} "
-    report += f"(检查点: {fmt(now_time, now_stats.负载检查时间, olddiff=False)}"
-    report += f" 预计消耗: {fmt(now_stats.负载预计用时)})\n"
-    report += f"近期平均用时: {fmt(now_stats.总每日平均用时)} (输出: {now_stats.总每日平均用时 / timedelta(hours=6.5):.2f})\n"
-    report += report_worktime(now_data) + "\n\n"
-    report += report_long_tasks(now_data) + "\n\n"
-    report += report_short_tasks(now_data) + "\n\n"
+        report += report_tasks_diff(now_data, prev_data, hide_decay=args.change)
+    else:
+        report += report_worktime(now_data) + "\n\n"
+        report += report_long_tasks(now_data) + "\n\n"
+        report += report_short_tasks(now_data) + "\n\n"
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:
             f.write(data.model_dump_json(indent=2))

@@ -318,9 +318,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             )
     for task2 in now_state.短期任务.values():
         tstat2 = 短期任务统计[task2.名称]
-        collection.append(
-            (tstat2.预计需要时间, task2.最晚结束, tstat2)
-        )
+        collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
     # 按照截止日期排序
     collection.sort(key=lambda x: x[1])
     loads: list[float] = []
