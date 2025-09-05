@@ -290,6 +290,7 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         "完成",
         "点数",
         "变化",
+        "负载",
         "剩余时间",
     ]
     最大负载 = 0.0
@@ -313,15 +314,16 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数 += nstat1.点数
             其它点数变化 += nstat1.点数 - pstat1.点数
             continue
-        # ["", "名称", "|", "用时", "完成", "点数", "变化", "剩余时间"]
+        # ["", "名称", "|", "用时", "完成", "点数", "变化", "负载", "剩余时间"]
         table_line = [
             LONG_RUNNING if nstat1.用时 != pstat1.用时 else LONG_WAITING,
-            ntask1.名称,
+            ntask1.标题,
             "|",
             fmt(nstat1.用时 - pstat1.用时),
             fmt(nstat1.进度 - pstat1.进度),
             fmt(nstat1.点数),
             fmt(nstat1.点数 - pstat1.点数, pos=True),
+            fmt(nstat1.负载程度, p2=True),
             (
                 fmt(ntask1.最晚结束 - N.time)
                 if nstat1.进度 > 0
@@ -352,15 +354,16 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数 += nstat2.点数
             其它点数变化 += nstat2.点数 - pstat2.点数
             continue
-        # ["", "名称", "|", "用时", "完成", "点数", "变化", "剩余时间"]
+        # ["", "名称", "|", "用时", "完成", "点数", "变化", "负载", "剩余时间"]
         table_line = [
             SHORT_RUNNING if nstat2.用时 != pstat2.用时 else SHORT_WAITING,
-            ntask2.名称,
+            ntask2.标题,
             "|",
             fmt(nstat2.用时 - pstat2.用时),
             "√" if ntask2.完成 is not None else "",
             fmt(nstat2.点数),
             fmt(nstat2.点数 - pstat2.点数, pos=True),
+            fmt(nstat2.负载程度, p2=True),
             fmt(ntask2.最晚结束 - N.time),
         ]
         总用时 += nstat2.用时 - pstat2.用时
@@ -376,12 +379,10 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             "",
             "其它",
             "|",
+            "",
+            "",
             fmt(其它点数),
             fmt(其它点数变化),
-            "",
-            "",
-            "",
-            "",
             "",
             "",
         ]
@@ -391,13 +392,11 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         "",
         "总数",
         "|",
+        fmt(总用时),
+        "",
         fmt(N.stats.Goldie点数),
         fmt(N.stats.Goldie点数 - P.stats.Goldie点数, pos=True),
         fmt(最大负载, p2=True),
-        fmt(最大负载 - 最大负载p, p2=True, pos=True),
-        fmt(总用时),
-        "",
-        "",
         "",
     ]
     total_line = colorline(

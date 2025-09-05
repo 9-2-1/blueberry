@@ -361,9 +361,12 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         tot_timeneed += timeneed
         tot_worktime = workdays(now_time, deadline, worktime)
         if tot_worktime == 0:
-            load = 0.0
+            load = timedelta(days=1) / 推荐用时
+            # 超过 1天/推荐用时 的负载不可能做到。
         else:
-            load = (tot_timeneed / 推荐用时) / tot_worktime
+            load = min(
+                timedelta(days=1) / 推荐用时, (tot_timeneed / 推荐用时) / tot_worktime
+            )
         loads.append(load)
     load_max = 0.0
     load_max_node = (datetime.now(), timedelta(0))

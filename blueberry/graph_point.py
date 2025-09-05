@@ -5,6 +5,7 @@ from typing import List, Tuple
 import traceback
 
 from .parser import load_data
+from .config import 推荐用时
 from .collect import collect_state
 from .statistic import statistic
 
@@ -97,10 +98,11 @@ def plot_loads(history: List[Tuple[datetime, float]]) -> None:
     Args:
         history: 包含 (日期, 负载) 的列表
     """
-    dates, points = zip(*history)
+    dates, loads = zip(*history)
 
     plt.figure(figsize=(12, 6))
-    plt.plot(dates, points, linestyle="-", color="blue", linewidth=2)
+    plt.plot(dates, loads, linestyle="-", color="blue", linewidth=2)
+    plt.plot(dates, [1 for x in loads], linestyle="--", color="red", linewidth=2)
 
     # 设置标题和坐标轴标签
     plt.title("近30天负载变化趋势 (30分钟采样)", fontsize=16)
@@ -118,7 +120,7 @@ def plot_loads(history: List[Tuple[datetime, float]]) -> None:
     plt.grid(True, linestyle="--", alpha=0.7)
 
     # 设置y轴范围，让图表更美观
-    plt.ylim(0.00, 2.00)
+    plt.ylim(0.00, timedelta(days=1) / 推荐用时)
 
     plt.tight_layout()
     plt.savefig("loads_trend.png", dpi=300)
