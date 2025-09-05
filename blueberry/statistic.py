@@ -4,7 +4,13 @@ from datetime import datetime, timedelta, time as datetime_time
 import math
 import logging
 
-from .models import WorktimeModel, ProgressModel, PickerModel
+from .models import (
+    WorktimeModel,
+    ProgressModel,
+    PickerModel,
+    LongTaskModel,
+    ShortTaskModel,
+)
 from .collect import State
 from .config import 推荐用时
 
@@ -40,6 +46,34 @@ class LongTaskStats(TaskStats):
 class ShortTaskStats(TaskStats):
     # blink!
     pass
+
+
+def EmptyLongTaskStats(task: LongTaskModel) -> LongTaskStats:
+    return LongTaskStats(
+        预计需要时间=timedelta(0),
+        预计可用时间=timedelta(0),
+        最晚结束=task.最晚结束,
+        点数=0,
+        用时=timedelta(0),
+        负载程度=0,
+        负载关键节点=False,
+        进度=0,
+        速度=0,
+        每日用时=timedelta(0),
+        最晚开始=task.最晚开始,
+    )
+
+
+def EmptyShortTaskStats(task: ShortTaskModel) -> ShortTaskStats:
+    return ShortTaskStats(
+        预计需要时间=timedelta(0),
+        预计可用时间=timedelta(0),
+        最晚结束=task.最晚结束,
+        点数=0,
+        用时=timedelta(0),
+        负载程度=0,
+        负载关键节点=False,
+    )
 
 
 @dataclass

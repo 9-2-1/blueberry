@@ -12,7 +12,7 @@ from tabulate import tabulate, SEPARATING_LINE
 from .config import 推荐用时
 from .models import AppendOnly, PickerModel
 from .collect import State
-from .statistic import StateStats, isdisabled
+from .statistic import StateStats, isdisabled, EmptyLongTaskStats, EmptyShortTaskStats
 
 
 FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
@@ -185,7 +185,7 @@ def report_long_tasks(N: ReportData) -> str:
             task.名称,
             "|",
             fmt(tstat.点数),
-            f"{tstat.负载程度:.2f}" + ("*" if tstat.负载关键节点 else ""),
+            f"{tstat.负载程度:.2f}",
             fmt(tstat.进度),
             fmt(task.总数 - tstat.进度),
             (
@@ -303,7 +303,10 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
     table_lines: list[Union[list[str], str]] = []
     for ntask1 in prefer(N.state.长期任务.values(), N.state.选择排序偏好):
         nstat1 = N.stats.长期任务统计[ntask1.名称]
-        pstat1 = P.stats.长期任务统计[ntask1.名称]
+        if ntask1.名称 not in P.stats.长期任务统计:
+            pstat1 = EmptyLongTaskStats(ntask1)
+        else:
+            pstat1 = P.stats.长期任务统计[ntask1.名称]
         # 跳过完成0分项
         if pstat1.进度 >= ntask1.总数 and N.time >= ntask1.最晚结束:
             continue
@@ -320,7 +323,7 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             "|",
             fmt(nstat1.点数),
             fmt(nstat1.点数 - pstat1.点数, pos=True),
-            fmt(nstat1.负载程度, p2=True) + ("*" if nstat1.负载关键节点 else ""),
+            fmt(nstat1.负载程度, p2=True),
             fmt(nstat1.负载程度 - pstat1.负载程度, p2=True, pos=True),
             fmt(nstat1.用时 - pstat1.用时),
             fmt(nstat1.进度 - pstat1.进度),
@@ -338,7 +341,10 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         table_lines.append(table_line)
     for ntask2 in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
         nstat2 = N.stats.短期任务统计[ntask2.名称]
-        pstat2 = P.stats.短期任务统计[ntask2.名称]
+        if ntask2.名称 not in P.stats.短期任务统计:
+            pstat2 = EmptyShortTaskStats(ntask2)
+        else:
+            pstat2 = P.stats.短期任务统计[ntask2.名称]
         # 跳过完成0分项
         if (
             ntask2.完成 is not None
@@ -359,7 +365,7 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             "|",
             fmt(nstat2.点数),
             fmt(nstat2.点数 - pstat2.点数, pos=True),
-            fmt(nstat2.负载程度, p2=True) + ("*" if nstat2.负载关键节点 else ""),
+            fmt(nstat2.负载程度, p2=True),
             fmt(nstat2.负载程度 - pstat2.负载程度, p2=True, pos=True),
             fmt(nstat2.用时 - pstat2.用时),
             fmt(nstat2.用时),
