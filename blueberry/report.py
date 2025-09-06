@@ -66,10 +66,10 @@ def fmt(
         raise TypeError("未知类型")
 
 
-ColorMode = Literal["goldie", "shadowzero", "goldiechange"]
+ColorMode = Literal["goldie", "shadowzero", "goldiechange", "highlightreach"]
 
 
-def colorit(value: FmtT, fmtstr: str, colormode: ColorMode) -> str:
+def colorit(value: FmtT, fmtstr: str, colormode: ColorMode, target_reach: bool = False) -> str:
     if colormode == "goldie":
         assert isinstance(value, int)
         color = goldie_color(value)
@@ -83,6 +83,16 @@ def colorit(value: FmtT, fmtstr: str, colormode: ColorMode) -> str:
         assert isinstance(value, int)
         color = goldie_change_color(value)
         fmtstr = f"{ESC}[{color}m{fmtstr}{ESC}[0m"
+        return fmtstr
+    elif colormode == "highlightreach":
+        if target_reach:
+            if value in {0, timedelta(0)}:
+                fmtstr = f"{ESC}[{CYAN}m{fmtstr}{ESC}[0m"
+            else:
+                fmtstr = f"{ESC}[{BLUE}m{fmtstr}{ESC}[0m"
+        else:
+            if value in {0, timedelta(0)}:
+                fmtstr = f"{ESC}[{DARKGREY}m{fmtstr}{ESC}[0m"
         return fmtstr
     else:
         raise ValueError(f"未知颜色模式: {colormode}")
@@ -320,8 +330,9 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             continue
         # [None, "名称", "|", "用时", "完成", "点数", "变化", "推荐", "预计", "剩余时间"]
         colorpts = nstat1.点数 - (0 if nstat1.进度 > 0 else 1)
-        reach_recommend = nstat1.用时 - pstat1.用时 >= nstat1.推荐每日用时
         推荐完成 = nstat1.推荐每日用时 / timedelta(hours=1) * nstat1.速度
+        time_reach_recommend = nstat1.用时 - pstat1.用时 >= nstat1.推荐每日用时
+        reach_recommend = nstat1.进度 >= ntask1.总数 or (nstat1.速度 != 0 and nstat1.进度 - pstat1.进度 >= 推荐完成)
         table_line: list[Optional[str]] = [
             colorit(
                 colorpts,
@@ -331,10 +342,10 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             colorit(0 if reach_recommend else 1, ntask1.标题, "shadowzero"),
             "|",
             colorit(
-                nstat1.用时 - pstat1.用时, fmt(nstat1.用时 - pstat1.用时), "shadowzero"
+                nstat1.用时 - pstat1.用时, fmt(nstat1.用时 - pstat1.用时), "highlightreach", target_reach=time_reach_recommend
             ),
             colorit(
-                nstat1.进度 - pstat1.进度, fmt(nstat1.进度 - pstat1.进度), "shadowzero"
+                nstat1.进度 - pstat1.进度, fmt(nstat1.进度 - pstat1.进度), "highlightreach", target_reach=reach_recommend
             ),
             colorit(colorpts, fmt(nstat1.点数), "goldie"),
             colorit(
