@@ -69,7 +69,9 @@ def fmt(
 ColorMode = Literal["goldie", "shadowzero", "goldiechange", "highlightreach"]
 
 
-def colorit(value: FmtT, fmtstr: str, colormode: ColorMode, target_reach: bool = False) -> str:
+def colorit(
+    value: FmtT, fmtstr: str, colormode: ColorMode, target_reach: bool = False
+) -> str:
     if colormode == "goldie":
         assert isinstance(value, int)
         color = goldie_color(value)
@@ -87,12 +89,10 @@ def colorit(value: FmtT, fmtstr: str, colormode: ColorMode, target_reach: bool =
     elif colormode == "highlightreach":
         if target_reach:
             if value in {0, timedelta(0)}:
-                fmtstr = f"{ESC}[{CYAN}m{fmtstr}{ESC}[0m"
+                fmtstr = f"{ESC}[{DARKGREY}m{fmtstr}{ESC}[0m"
             else:
                 fmtstr = f"{ESC}[{BLUE}m{fmtstr}{ESC}[0m"
-        else:
-            if value in {0, timedelta(0)}:
-                fmtstr = f"{ESC}[{DARKGREY}m{fmtstr}{ESC}[0m"
+        # leave it black to emphasis especially it is zero
         return fmtstr
     else:
         raise ValueError(f"未知颜色模式: {colormode}")
@@ -294,7 +294,9 @@ def report_short_tasks(N: ReportData) -> str:
     return report
 
 
-def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) -> str:
+def report_tasks_diff(
+    N: ReportData, P: ReportData, hide_decay: bool = False, *, total_str: str = "总数"
+) -> str:
     table_headers = [
         "",
         "名称",
@@ -303,8 +305,8 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         "完成",
         "点数",
         "变化",
-        "推荐",
-        "预计",
+        "建议",
+        "时长",
         "剩余时间",
     ]
     推荐每日用时 = timedelta(0)
@@ -328,24 +330,32 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数变化 += nstat1.点数 - pstat1.点数
             其它推荐每日用时 += nstat1.推荐每日用时
             continue
-        # [None, "名称", "|", "用时", "完成", "点数", "变化", "推荐", "预计", "剩余时间"]
+        # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]
         colorpts = nstat1.点数 - (0 if nstat1.进度 > 0 else 1)
         推荐完成 = nstat1.推荐每日用时 / timedelta(hours=1) * nstat1.速度
         time_reach_recommend = nstat1.用时 - pstat1.用时 >= nstat1.推荐每日用时
-        reach_recommend = nstat1.进度 >= ntask1.总数 or (nstat1.速度 != 0 and nstat1.进度 - pstat1.进度 >= 推荐完成)
+        reach_recommend = nstat1.进度 >= ntask1.总数 or (
+            nstat1.速度 != 0 and nstat1.进度 - pstat1.进度 >= 推荐完成
+        )
         table_line: list[Optional[str]] = [
             colorit(
                 colorpts,
-                LONG_RUNNING if nstat1.用时 != pstat1.用时 else LONG_WAITING,
+                LONG_RUNNING if not reach_recommend else LONG_WAITING,
                 "goldie",
             ),
             colorit(0 if reach_recommend else 1, ntask1.标题, "shadowzero"),
             "|",
             colorit(
-                nstat1.用时 - pstat1.用时, fmt(nstat1.用时 - pstat1.用时), "highlightreach", target_reach=time_reach_recommend
+                nstat1.用时 - pstat1.用时,
+                fmt(nstat1.用时 - pstat1.用时),
+                "highlightreach",
+                target_reach=time_reach_recommend,
             ),
             colorit(
-                nstat1.进度 - pstat1.进度, fmt(nstat1.进度 - pstat1.进度), "highlightreach", target_reach=reach_recommend
+                nstat1.进度 - pstat1.进度,
+                fmt(nstat1.进度 - pstat1.进度),
+                "highlightreach",
+                target_reach=reach_recommend,
             ),
             colorit(colorpts, fmt(nstat1.点数), "goldie"),
             colorit(
@@ -382,7 +392,7 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
             其它点数变化 += nstat2.点数 - pstat2.点数
             其它推荐每日用时 += nstat2.推荐每日用时
             continue
-        # [None, "名称", "|", "用时", "完成", "点数", "变化", "推荐", "预计", "剩余时间"]
+        # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
         colorpts = nstat2.点数 - (0 if ntask2.完成 is not None else 1)
         reach_recommend = ntask2.完成 is not None or nstat2.推荐每日用时 == timedelta(0)
         table_line = [
@@ -426,7 +436,7 @@ def report_tasks_diff(N: ReportData, P: ReportData, hide_decay: bool = False) ->
         table_lines.append(total_line)
     total_line = [
         None,
-        "总数",
+        total_str,
         "|",
         colorit(总用时, fmt(总用时), "shadowzero"),
         None,

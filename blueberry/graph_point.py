@@ -98,42 +98,42 @@ def plot_goldie_points(history: List[Tuple[datetime, int]]) -> None:
     plt.savefig("goldie_points_trend.png", dpi=300)
 
 
-def plot_loads(history: List[Tuple[datetime, timedelta, timedelta]]) -> None:
+def plot_daily_time(history: List[Tuple[datetime, timedelta, timedelta]]) -> None:
     """
-    绘制负载变化折线图
+    绘制每日时长变化折线图
 
     Args:
         history: 包含 (日期, 负载) 的列表
     """
-    dates, loads, outs = zip(*history)
+    dates, time_recommend, time_used = zip(*history)
 
     plt.figure(figsize=(12, 6))
     plt.plot(
         dates,
-        [x / timedelta(hours=1) for x in loads],
+        [x / timedelta(hours=1) for x in time_recommend],
         linestyle="-",
         color="green",
         linewidth=2,
     )
     plt.plot(
         dates,
-        [x / timedelta(hours=1) for x in outs],
+        [x / timedelta(hours=1) for x in time_used],
         linestyle="-",
         color="blue",
         linewidth=2,
     )
     plt.plot(
         dates,
-        [推荐用时 / timedelta(hours=1) for x in loads],
+        [推荐用时 / timedelta(hours=1) for x in time_recommend],
         linestyle="--",
         color="red",
         linewidth=2,
     )
 
     # 设置标题和坐标轴标签
-    plt.title("近30天负载变化趋势 (30分钟采样)", fontsize=16)
+    plt.title("近30天每日时长变化趋势 (30分钟采样)", fontsize=16)
     plt.xlabel("日期", fontsize=14)
-    plt.ylabel("负载", fontsize=14)
+    plt.ylabel("时长 (小时)", fontsize=14)
 
     # 设置x轴日期格式
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
@@ -156,7 +156,7 @@ def main() -> None:
     print("正在生成近30天 Goldie 点数变化折线图 (30分钟采样)...")
     history = get_goldie_points_loads_history(30, "记录.xlsx")
     plot_goldie_points([(x[0], x[1]) for x in history])
-    plot_loads([(x[0], x[2], x[3]) for x in history])
+    plot_daily_time([(x[0], x[2], x[3]) for x in history])
 
 
 if __name__ == "__main__":

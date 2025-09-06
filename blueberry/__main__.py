@@ -113,7 +113,12 @@ def main() -> None:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
         prev_data = ReportData(prev_time, prev_state, prev_stats)
-        report += report_tasks_diff(now_data, prev_data, hide_decay=args.change)
+        report += report_tasks_diff(
+            now_data,
+            prev_data,
+            hide_decay=args.change,
+            total_str="今日总数" if args.daily else "总数",
+        )
     else:
         report += report_worktime(now_data) + "\n\n"
         report += report_long_tasks(now_data) + "\n\n"
