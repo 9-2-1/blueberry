@@ -8,7 +8,7 @@ from .collect import collect_state
 from .statistic import statistic
 from .webserver import live_server
 from .report import (
-    fmt,
+    report_head,
     report_worktime,
     report_long_tasks,
     report_short_tasks,
@@ -108,11 +108,7 @@ def main() -> None:
     now_stats = statistic(now_state, now_time)
     now_data = ReportData(now_time, now_state, now_stats)
 
-    report = f"blueberry - {now_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report += f"需要的负载: {fmt(now_stats.负载, p2=True)} "
-    report += f"(检查点: {fmt(now_time, now_stats.负载检查时间, olddiff=False)}"
-    report += f" 预计消耗: {fmt(now_stats.负载预计用时)})\n"
-    report += f"近期平均用时: {fmt(now_stats.总每日平均用时)} (输出: {now_stats.总每日平均用时 / 推荐用时:.2f})\n\n"
+    report = report_head(now_data) + "\n\n"
     if prev_time:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)

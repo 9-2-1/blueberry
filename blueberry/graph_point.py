@@ -16,7 +16,7 @@ plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 
 def get_goldie_points_loads_history(
     days: int = 30, data_file: str = "data.xlsx"
-) -> List[Tuple[datetime, int, float, float]]:
+) -> List[Tuple[datetime, int, timedelta, timedelta]]:
     """
     获取近 days 天的 Goldie 点数历史数据，采样精度为30分钟每次
 
@@ -48,8 +48,8 @@ def get_goldie_points_loads_history(
                 (
                     current_time,
                     stats.Goldie点数,
-                    stats.负载,
-                    stats.总每日平均用时 / 推荐用时,
+                    stats.建议每日用时,
+                    stats.总每日平均用时,
                 )
             )
         except Exception as e:
@@ -98,7 +98,7 @@ def plot_goldie_points(history: List[Tuple[datetime, int]]) -> None:
     plt.savefig("goldie_points_trend.png", dpi=300)
 
 
-def plot_loads(history: List[Tuple[datetime, float, float]]) -> None:
+def plot_loads(history: List[Tuple[datetime, timedelta, timedelta]]) -> None:
     """
     绘制负载变化折线图
 
@@ -108,9 +108,27 @@ def plot_loads(history: List[Tuple[datetime, float, float]]) -> None:
     dates, loads, outs = zip(*history)
 
     plt.figure(figsize=(12, 6))
-    plt.plot(dates, loads, linestyle="-", color="green", linewidth=2)
-    plt.plot(dates, outs, linestyle="-", color="blue", linewidth=2)
-    plt.plot(dates, [1 for x in loads], linestyle="--", color="red", linewidth=2)
+    plt.plot(
+        dates,
+        [x / timedelta(hours=1) for x in loads],
+        linestyle="-",
+        color="green",
+        linewidth=2,
+    )
+    plt.plot(
+        dates,
+        [x / timedelta(hours=1) for x in outs],
+        linestyle="-",
+        color="blue",
+        linewidth=2,
+    )
+    plt.plot(
+        dates,
+        [推荐用时 / timedelta(hours=1) for x in loads],
+        linestyle="--",
+        color="red",
+        linewidth=2,
+    )
 
     # 设置标题和坐标轴标签
     plt.title("近30天负载变化趋势 (30分钟采样)", fontsize=16)
@@ -128,7 +146,7 @@ def plot_loads(history: List[Tuple[datetime, float, float]]) -> None:
     plt.grid(True, linestyle="--", alpha=0.7)
 
     # 设置y轴范围，让图表更美观
-    plt.ylim(0.00, timedelta(days=1) / 推荐用时)
+    plt.ylim(0, 24)
 
     plt.tight_layout()
     plt.savefig("loads_trend.png", dpi=300)

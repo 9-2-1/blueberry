@@ -30,8 +30,7 @@ class TaskStats:
     最晚结束: datetime
     点数: int
     用时: timedelta
-    负载程度: float  # 最后一次统计
-    负载关键节点: bool
+    推荐每日用时: timedelta  # 最后一次统计
 
 
 @dataclass
@@ -55,8 +54,7 @@ def EmptyLongTaskStats(task: LongTaskModel) -> LongTaskStats:
         最晚结束=task.最晚结束,
         点数=0,
         用时=timedelta(0),
-        负载程度=0,
-        负载关键节点=False,
+        推荐每日用时=timedelta(0),
         进度=0,
         速度=0,
         每日用时=timedelta(0),
@@ -71,8 +69,7 @@ def EmptyShortTaskStats(task: ShortTaskModel) -> ShortTaskStats:
         最晚结束=task.最晚结束,
         点数=0,
         用时=timedelta(0),
-        负载程度=0,
-        负载关键节点=False,
+        推荐每日用时=timedelta(0),
     )
 
 
@@ -84,9 +81,9 @@ class StateStats:
     短期任务点数: int
     短期任务统计: dict[str, ShortTaskStats]  # TODO
     总每日平均用时: timedelta
-    负载: float
-    负载检查时间: datetime
-    负载预计用时: timedelta
+    建议每日用时: timedelta
+    下一关键时间: datetime
+    下一关键节点任务量时长: timedelta
 
 
 def workday_time(time: datetime, worktime: list[WorktimeModel]) -> timedelta:
@@ -252,8 +249,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             最晚结束=task1.最晚结束,
             点数=点数,
             用时=用时,
-            负载程度=0.0,
-            负载关键节点=False,
+            推荐每日用时=timedelta(0),
             进度=进度,
             速度=速度.速度,
             每日用时=速度.每日用时,
@@ -315,8 +311,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             最晚结束=task2.最晚结束,
             点数=点数,
             用时=用时,
-            负载程度=0.0,
-            负载关键节点=False,
+            推荐每日用时=timedelta(0),
         )
         短期任务点数 += 点数
 
@@ -355,28 +350,26 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
     # 按照截止日期排序
     collection.sort(key=lambda x: x[1])
-    loads: list[float] = []
-    tot_timeneed = timedelta(0)
-    for timeneed, deadline, tstat in collection:
-        tot_timeneed += timeneed
-        tot_worktime = workdays(now_time, deadline, worktime)
+    tot_work = timedelta(0)
+    tpd_max = timedelta(0)
+    tpd_max_time = now_time
+    tpd_max_work = timedelta(0)
+    for i, (workt, endtime, tstat) in enumerate(collection):
+        tot_work += workt
+        tot_worktime = workdays(now_time, endtime, worktime)
         if tot_worktime == 0:
-            load = timedelta(days=1) / 推荐用时
-            # 超过 1天/推荐用时 的负载不可能做到。
+            if tot_work == timedelta(0):
+                tpd = timedelta(days=0)
+            else:
+                tpd = timedelta(days=1)
+                # 超过 1天 的每日用时不可能做到。
         else:
-            load = min(
-                timedelta(days=1) / 推荐用时, (tot_timeneed / 推荐用时) / tot_worktime
-            )
-        loads.append(load)
-    load_max = 0.0
-    load_max_node = (datetime.now(), timedelta(0))
-    for (timeneed, deadline, tstat), load in zip(reversed(collection), reversed(loads)):
-        if load > load_max:
-            load_max = load
-            tstat.负载关键节点 = True
-            load_max_node = (deadline, tot_timeneed)
-        tot_timeneed -= timeneed
-        tstat.负载程度 = load_max
+            tpd = min(timedelta(days=1), (tot_work / tot_worktime))
+        if tpd > tpd_max:
+            tstat.推荐每日用时 = tpd - tpd_max
+            tpd_max = tpd
+            tpd_max_time = endtime
+            tpd_max_work = tot_work
 
     Goldie点数 = 长期任务点数 + 短期任务点数
     return StateStats(
@@ -386,9 +379,9 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         短期任务点数=短期任务点数,
         短期任务统计=短期任务统计,
         总每日平均用时=总每日平均用时,
-        负载=load_max,
-        负载检查时间=load_max_node[0],
-        负载预计用时=load_max_node[1],
+        建议每日用时=tpd_max,
+        下一关键时间=tpd_max_time,
+        下一关键节点任务量时长=tpd_max_work,
     )
 
 
