@@ -364,7 +364,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 tpd = timedelta(days=1)
                 # 超过 1天 的每日用时不可能做到。
         else:
-            tpd = min(timedelta(days=1), (tot_work / tot_worktime))
+            # 每日用时不能超过任务预期用时
+            tpd = min(timedelta(days=1), workt, (tot_work / tot_worktime))
         if tpd > tpd_max:
             tstat.推荐每日用时 = tpd - tpd_max
             tpd_max = tpd
