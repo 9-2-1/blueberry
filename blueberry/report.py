@@ -58,9 +58,9 @@ def fmt(
         elif v > timedelta(hours=1):
             vstr = f"{v // timedelta(hours=1)}h{v // timedelta(minutes=1) % 60}m"
         elif v > timedelta(minutes=1):
-            vstr = f"{v // timedelta(minutes=1)}min"
+            vstr = f"{v // timedelta(minutes=1)}m"
         else:
-            vstr = "0"
+            vstr = "0 "
         return sign + vstr
     else:
         raise TypeError("未知类型")
@@ -190,6 +190,18 @@ def report_long_tasks(N: ReportData) -> str:
         "预计用时",
         "每日平均用时",
     ]
+    table_colalign = [
+        "left",
+        "left",
+        "left",  # "|"
+        "decimal",
+        "right",
+        "decimal",
+        "decimal",
+        "right",
+        "right",
+        "right",
+    ]
     推荐每日用时 = timedelta(0)
     总预计时间 = timedelta(0)
     table_lines: list[Union[Sequence[Optional[str]], str]] = []
@@ -235,7 +247,9 @@ def report_long_tasks(N: ReportData) -> str:
         colorit(N.stats.总每日平均用时, fmt(N.stats.总每日平均用时), "shadowzero"),
     ]
     table_lines.append(total_line)
-    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    report = tabulate(
+        table_lines, headers=table_headers, colalign=table_colalign, tablefmt="simple"
+    )
     return report
 
 
@@ -250,6 +264,16 @@ def report_short_tasks(N: ReportData) -> str:
         "用时",
         "预计时间",
         "剩余时间",
+    ]
+    table_colalign = [
+        "left",
+        "left",
+        "left",  # "|"
+        "decimal",
+        "right",
+        "right",
+        "right",
+        "right",
     ]
     推荐每日用时 = timedelta(0)
     总用时 = timedelta(0)
@@ -290,7 +314,9 @@ def report_short_tasks(N: ReportData) -> str:
         None,
     ]
     table_lines.append(total_line)
-    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    report = tabulate(
+        table_lines, headers=table_headers, colalign=table_colalign, tablefmt="simple"
+    )
     return report
 
 
@@ -308,6 +334,18 @@ def report_tasks_diff(
         "建议",
         "时长",
         "剩余时间",
+    ]
+    table_colalign = [
+        "left",
+        "left",
+        "left",  # "|"
+        "right",
+        "decimal",
+        "decimal",
+        "decimal",
+        "decimal",
+        "right",
+        "right",
     ]
     推荐每日用时 = timedelta(0)
     总用时 = timedelta(0)
@@ -451,5 +489,7 @@ def report_tasks_diff(
         None,
     ]
     table_lines.append(total_line)
-    report = tabulate(table_lines, headers=table_headers, tablefmt="simple")
+    report = tabulate(
+        table_lines, headers=table_headers, colalign=table_colalign, tablefmt="simple"
+    )
     return report
