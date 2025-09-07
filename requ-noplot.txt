@@ -1,0 +1,18 @@
+# dataclass / typing / verification
+pydantic
+
+# excel xlsx
+openpyxl
+
+# web
+aiohttp
+
+# report
+tabulate
+wcwidth
+
+# datetime
+dateparser
+
+# zoneinfo
+tzdata

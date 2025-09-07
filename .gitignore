@@ -20,3 +20,9 @@ __pycache__
 .stignore
 .stfolder
 .stversions
+
+# wheels
+wheel
+
+# imgs
+*.png
