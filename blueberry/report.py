@@ -448,7 +448,7 @@ def report_tasks_diff(
         table_line = [
             colorit(
                 colorpts,
-                SHORT_RUNNING if nstat2.用时 != pstat2.用时 else SHORT_WAITING,
+                SHORT_RUNNING if not reach_recommend else SHORT_WAITING,
                 "goldie",
             ),
             colorit(0 if reach_recommend else 1, ntask2.标题, "shadowzero"),
