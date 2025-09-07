@@ -407,10 +407,14 @@ def report_tasks_diff(
             ),
             colorit(推荐完成, fmt(推荐完成, p2=True), "shadowzero"),
             colorit(nstat1.推荐每日用时, fmt(nstat1.推荐每日用时), "shadowzero"),
-            (
-                fmt(ntask1.最晚结束 - N.time)
-                if nstat1.进度 > 0
-                else fmt(ntask1.最晚开始 - N.time) + "开始"
+            colorit(
+                0 if nstat1.进度 >= ntask1.总数 else 1,
+                (
+                    fmt(ntask1.最晚结束 - N.time)
+                    if nstat1.进度 > 0
+                    else fmt(ntask1.最晚开始 - N.time) + "开始"
+                ),
+                "shadowzero",
             ),
         ]
         总用时 += nstat1.用时 - pstat1.用时
@@ -424,8 +428,8 @@ def report_tasks_diff(
         # 跳过完成0分项
         if (
             ntask2.完成 is not None
-            and N.time >= ntask2.完成
-            and N.time >= ntask2.最晚结束
+            and P.time >= ntask2.完成
+            and P.time >= ntask2.最晚结束
         ):
             continue
         推荐每日用时 += nstat2.推荐每日用时
@@ -435,8 +439,12 @@ def report_tasks_diff(
             其它推荐每日用时 += nstat2.推荐每日用时
             continue
         # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
-        colorpts = nstat2.点数 - (0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1)
-        reach_recommend = (ntask2.完成 is not None and N.time >= ntask2.完成) or nstat2.推荐每日用时 == timedelta(0)
+        colorpts = nstat2.点数 - (
+            0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1
+        )
+        reach_recommend = (
+            ntask2.完成 is not None and N.time >= ntask2.完成
+        ) or nstat2.推荐每日用时 == timedelta(0)
         table_line = [
             colorit(
                 colorpts,
@@ -457,7 +465,11 @@ def report_tasks_diff(
             ),
             None,
             colorit(nstat2.推荐每日用时, fmt(nstat2.推荐每日用时), "shadowzero"),
-            fmt(ntask2.最晚结束 - N.time),
+            colorit(
+                0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1,
+                fmt(ntask2.最晚结束 - N.time),
+                "shadowzero",
+            ),
         ]
         总用时 += nstat2.用时 - pstat2.用时
         table_lines.append(table_line)
