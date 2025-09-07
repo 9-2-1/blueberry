@@ -435,8 +435,8 @@ def report_tasks_diff(
             其它推荐每日用时 += nstat2.推荐每日用时
             continue
         # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
-        colorpts = nstat2.点数 - (0 if ntask2.完成 is not None else 1)
-        reach_recommend = ntask2.完成 is not None or nstat2.推荐每日用时 == timedelta(0)
+        colorpts = nstat2.点数 - (0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1)
+        reach_recommend = (ntask2.完成 is not None and N.time >= ntask2.完成) or nstat2.推荐每日用时 == timedelta(0)
         table_line = [
             colorit(
                 colorpts,
@@ -448,7 +448,7 @@ def report_tasks_diff(
             colorit(
                 nstat2.用时 - pstat2.用时, fmt(nstat2.用时 - pstat2.用时), "shadowzero"
             ),
-            "√" if ntask2.完成 is not None else None,
+            "√" if ntask2.完成 is not None and N.time >= ntask2.完成 else None,
             colorit(colorpts, fmt(nstat2.点数), "goldie"),
             colorit(
                 nstat2.点数 - pstat2.点数,

@@ -269,7 +269,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         用时 = timedelta(0)
         if task2.用时 is not None:
             用时 = task2.用时
-        elif task2.完成 is not None:
+        elif task2.完成 is not None and now_time >= task2.完成:
             用时 = task2.预计用时
         点数 = 0
         ptsu = task2.预计用时 / 推荐用时 * 100
@@ -284,7 +284,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 * workdays(now_time, task2.最晚结束, worktime)
                 / workdays(task2.最早开始, task2.最晚结束, worktime)
             )
-        if task2.完成 is not None:
+        if task2.完成 is not None and now_time >= task2.完成:
             tot_progress.append(
                 ProgressModel(
                     时间=task2.完成,
