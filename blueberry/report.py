@@ -6,10 +6,14 @@ import wcwidth  # type: ignore
 
 # 用于tabulate的宽度计算
 from tabulate import tabulate, SEPARATING_LINE
+import tabulate as Tabulate
 
 from .models import AppendOnly, PickerModel
 from .collect import State
 from .statistic import StateStats, isdisabled, EmptyLongTaskStats, EmptyShortTaskStats
+
+
+Tabulate.PRESERVE_WHITESPACE = True
 
 
 FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
@@ -188,7 +192,7 @@ def report_long_tasks(N: ReportData) -> str:
         "剩余",
         "剩余时间",
         "预计用时",
-        "每日平均用时",
+        "日平均",
     ]
     table_colalign = [
         "left",
