@@ -1,5 +1,6 @@
 from datetime import timedelta
 import argparse
+import logging
 
 import dateparser
 
@@ -83,7 +84,16 @@ def main() -> None:
         help="使用 旧→新 格式，不用 新(±变化) 格式",
     )
     parser.add_argument("-o", "--output", action="store", help="输出文件路径")
+    parser.add_argument("-v", "--verbose", action="store_true", help="输出调试信息")
+
     args = parser.parse_args()
+
+    if args.verbose:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.WARNING)
+
+
 
     if args.live:
         live_server(args.workbook, host=args.host, port=args.port)
