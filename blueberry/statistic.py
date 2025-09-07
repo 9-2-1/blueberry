@@ -325,10 +325,12 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         )
         总每日平均用时 = tot_speed.每日用时
 
-    # 负载程度
+    # 推荐时长
     collection: list[tuple[timedelta, datetime, TaskStats]] = []
     for task1 in now_state.长期任务.values():
         tstat1 = 长期任务统计[task1.名称]
+        if tstat1.进度 >= task1.总数:
+            continue
         if tstat1.进度 == 0:
             collection.append(
                 (
@@ -346,6 +348,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 )
             )
     for task2 in now_state.短期任务.values():
+        if task2.完成 is not None and now_time >= task2.完成:
+            break
         tstat2 = 短期任务统计[task2.名称]
         collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
     # 按照截止日期排序
