@@ -93,8 +93,6 @@ def main() -> None:
     else:
         logging.basicConfig(level=logging.WARNING)
 
-
-
     if args.live:
         live_server(args.workbook, host=args.host, port=args.port)
         return
