@@ -1,11 +1,12 @@
 @echo off
 title blueberry live
 chcp 65001 > nul
+call conda activate blueberry
 
 :read
 for %%A in (记录.xlsx) do set oldtag=%%~tzA
 cls
-call conda run --no-capture-output -n blueberry python -m blueberry -o blueberry.txt -d
+call python -m blueberry -o blueberry.txt -d
 
 set waits=0
 :wait
