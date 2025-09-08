@@ -1,10 +1,9 @@
-from datetime import datetime, timedelta
-from typing import Optional, TypedDict
+from datetime import datetime
+from typing import Optional
 import os
 import aiohttp.web
-import json
+import logging
 
-from .config import CTZ
 from .parser import Data, load_data
 from .collect import collect_state
 from .statistic import statistic
@@ -12,34 +11,11 @@ from .report import fmt
 from .ctz_now import ctz_now
 
 
+logging.basicConfig(level=logging.INFO)
+
+
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
     return aiohttp.web.FileResponse("web/index.html")
-
-
-class Point(TypedDict):
-    time: float
-    value: int
-
-
-def smooth(X: list[float], jump: float) -> float:
-    window = len(X)
-    W = [1 / (x + 1) ** 0.5 for x in range(window)]
-    D = [X[i] - X[i - 1] if i > 0 else 0 for i in range(len(X))]
-    for i in range(window):
-        if abs(D[i]) > jump:
-            if i == 0:
-                D[i] = D[i + 1]
-            elif i == window - 1:
-                D[i] = D[i - 1]
-            else:
-                D[i] = (D[i - 1] + D[i + 1]) / 2
-    cur = X[0]
-    curv = D[0]
-    for i in range(1, window):
-        curv = curv + (D[i] - curv) * W[i]
-        cur += curv
-        cur = cur + (X[i] - cur) * W[i]
-    return cur
 
 
 def live_server(workbook: str, host: str, port: int) -> None:

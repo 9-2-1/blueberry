@@ -16,7 +16,6 @@ from .report import (
     report_tasks_diff,
     ReportData,
 )
-from .config import 推荐用时
 from .ctz_now import ctz_now
 
 

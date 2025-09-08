@@ -1,7 +1,7 @@
 from typing import Literal, TypeVar, Optional
 from datetime import datetime, timedelta, time as datetime_time
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class AppendOnly(BaseModel):
