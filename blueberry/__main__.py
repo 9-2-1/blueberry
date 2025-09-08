@@ -1,10 +1,11 @@
-from datetime import timedelta
 import argparse
 import logging
+import os
+import time
 
 import dateparser
 
-from .parser import load_data
+from .parser import load_data, Data
 from .collect import collect_state
 from .statistic import statistic
 from .webserver import live_server
@@ -19,9 +20,53 @@ from .report import (
 from .ctz_now import ctz_now
 
 
+def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
+    now_time = ctz_now()
+    if args.time is not None:
+        now_time = args.time
+
+    yesterday_time = now_time.replace(hour=0, minute=0, second=0)
+
+    if args.from_ is not None:
+        prev_time = args.from_
+    elif args.daily:
+        prev_time = yesterday_time
+    else:
+        prev_time = None
+
+    now_state = collect_state(data, now_time)
+    now_stats = statistic(now_state, now_time)
+    now_data = ReportData(now_time, now_state, now_stats)
+
+    report = report_head(now_data) + "\n\n"
+    if prev_time:
+        prev_state = collect_state(data, prev_time)
+        prev_stats = statistic(prev_state, prev_time)
+        prev_data = ReportData(prev_time, prev_state, prev_stats)
+        report += report_tasks_diff(
+            now_data,
+            prev_data,
+            hide_decay=args.change,
+            total_str="今日总数" if args.daily else "总数",
+        )
+    else:
+        report += report_worktime(now_data) + "\n\n"
+        report += report_long_tasks(now_data) + "\n\n"
+        report += report_short_tasks(now_data) + "\n\n"
+
+    if args.output is not None:
+        with open(f"{args.output}.json", "w", encoding="utf-8") as f:
+            f.write(data.model_dump_json(indent=2))
+        with open(f"{args.output}", "w", encoding="utf-8") as f:
+            f.write(report)
+
+    return report
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     # 基本参数
+    parser.add_argument("-W", "--watch", action="store_true", help="保持显示并自动更新")
     parser.add_argument(
         "-l", "--live", action="store_true", help="开启实时点数显示HTTP网页"
     )
@@ -96,45 +141,34 @@ def main() -> None:
         live_server(args.workbook, host=args.host, port=args.port)
         return
 
+    ESC = "\033"
+    HOME = ESC + "[H"
+    CLTEOL = ESC + "[K"
+    CLTEOS = ESC + "[J"
+    if args.watch:
+        fstat = os.stat(args.workbook)
+        last_mtime = fstat.st_mtime
+        last_report_time = time.time()
+        data = load_data(args.workbook)
+        while True:
+            fstat = os.stat(args.workbook)
+            if (
+                fstat.st_mtime != last_mtime
+                or last_report_time is None
+                or time.time() - last_report_time > 3600
+            ):
+                data = load_data(args.workbook)
+                last_mtime = fstat.st_mtime
+                last_report_time = time.time()
+            report = get_report_and_write(data, args)
+            print(
+                HOME + report.replace("\n", CLTEOL + "\n"), end=CLTEOS, flush=True
+            )
+            time.sleep(1)
+        return
+
     data = load_data(args.workbook)
-
-    now_time = ctz_now()
-    if args.time is not None:
-        now_time = args.time
-
-    yesterday_time = now_time.replace(hour=0, minute=0, second=0)
-
-    if args.from_ is not None:
-        prev_time = args.from_
-    elif args.daily:
-        prev_time = yesterday_time
-    else:
-        prev_time = None
-
-    now_state = collect_state(data, now_time)
-    now_stats = statistic(now_state, now_time)
-    now_data = ReportData(now_time, now_state, now_stats)
-
-    report = report_head(now_data) + "\n\n"
-    if prev_time:
-        prev_state = collect_state(data, prev_time)
-        prev_stats = statistic(prev_state, prev_time)
-        prev_data = ReportData(prev_time, prev_state, prev_stats)
-        report += report_tasks_diff(
-            now_data,
-            prev_data,
-            hide_decay=args.change,
-            total_str="今日总数" if args.daily else "总数",
-        )
-    else:
-        report += report_worktime(now_data) + "\n\n"
-        report += report_long_tasks(now_data) + "\n\n"
-        report += report_short_tasks(now_data) + "\n\n"
-    if args.output is not None:
-        with open(f"{args.output}.json", "w", encoding="utf-8") as f:
-            f.write(data.model_dump_json(indent=2))
-        with open(f"{args.output}", "w", encoding="utf-8") as f:
-            f.write(report)
+    report = get_report_and_write(data, args)
 
     print(report)
 
