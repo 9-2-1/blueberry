@@ -279,11 +279,14 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         elif now_time <= task2.最早开始:
             pts = 0.0
         else:
-            pts = (
-                -ptsu
-                * workdays(now_time, task2.最晚结束, worktime)
-                / workdays(task2.最早开始, task2.最晚结束, worktime)
-            )
+            if workdays(task2.最早开始, task2.最晚结束, worktime) == 0.0:
+                pts = -ptsu
+            else:
+                pts = (
+                    -ptsu
+                    * workdays(task2.最早开始, now_time, worktime)
+                    / workdays(task2.最早开始, task2.最晚结束, worktime)
+                )
         if task2.完成 is not None and now_time >= task2.完成:
             tot_progress.append(
                 ProgressModel(
@@ -370,7 +373,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             tpd_max_time = endtime
             tpd_max_work += workt
             tstat.推荐每日用时 = workt
-        tpd_max = timedelta(seconds=-1) # overdue!
+        tpd_max = timedelta(seconds=-1)  # overdue!
     else:
         for i, (workt, endtime, tstat) in enumerate(collection):
             tot_work += workt
@@ -396,6 +399,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             log.debug(
                 f"workt: {workt}, into {tot_quota - tot_alloc}, day {day_quota - day_alloc}"
             )
+            # float point error tolerance
             if tot_alloc > tot_quota:
                 continue
             if day_alloc > day_quota:
