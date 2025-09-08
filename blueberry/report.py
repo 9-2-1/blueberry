@@ -454,9 +454,9 @@ def report_tasks_diff(
             colorit(0 if reach_recommend else 1, ntask2.标题, "shadowzero"),
             "|",
             colorit(
-                nstat2.用时 - pstat2.用时, fmt(nstat2.用时 - pstat2.用时), "shadowzero"
+                nstat2.用时 - pstat2.用时, fmt(nstat2.用时 - pstat2.用时), "highlightreach", target_reach=reach_recommend
             ),
-            "√" if ntask2.完成 is not None and N.time >= ntask2.完成 else None,
+            colorit(1, "*", "highlightreach", target_reach=True) if ntask2.完成 is not None and N.time >= ntask2.完成 else None,
             colorit(colorpts, fmt(nstat2.点数), "goldie"),
             colorit(
                 nstat2.点数 - pstat2.点数,
