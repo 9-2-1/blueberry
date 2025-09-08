@@ -356,25 +356,59 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     collection.sort(key=lambda x: x[1])
     tot_work = timedelta(0)
     tpd_max = timedelta(0)
+    tpd_max_i = 0
     tpd_max_time = now_time
     tpd_max_work = timedelta(0)
-    for i, (workt, endtime, tstat) in enumerate(collection):
-        tot_work += workt
-        tot_worktime = workdays(now_time, endtime, worktime)
-        if tot_worktime == 0:
-            if tot_work == timedelta(0):
-                tpd = timedelta(days=0)
-            else:
-                tpd = timedelta(days=1)
-                # 超过 1天 的每日用时不可能做到。
-        else:
-            # 每日用时不能超过任务预期用时
-            tpd = min(timedelta(days=1), workt, (tot_work / tot_worktime))
-        if tpd > tpd_max:
-            tstat.推荐每日用时 = tpd - tpd_max
-            tpd_max = tpd
+    if collection and workdays(now_time, collection[0][1], worktime) <= 0:
+        log.info("overdue!")
+        # overdue!
+        for i, (workt, endtime, tstat) in enumerate(collection):
+            tot_worktime = workdays(now_time, endtime, worktime)
+            if tot_worktime > 0:
+                break
+            tpd_max_i = i + 1
             tpd_max_time = endtime
-            tpd_max_work = tot_work
+            tpd_max_work += workt
+            tstat.推荐每日用时 = workt
+        tpd_max = timedelta(seconds=-1) # overdue!
+    else:
+        for i, (workt, endtime, tstat) in enumerate(collection):
+            tot_work += workt
+            tot_worktime = workdays(now_time, endtime, worktime)
+            # tot_worktime > 0
+            tpd = tot_work / tot_worktime
+            if tpd > tpd_max:
+                tpd_max_i = i + 1
+                tpd_max = tpd
+                tpd_max_time = endtime
+                tpd_max_work = tot_work
+        # 对tpd_max_i（关键点）之前的任务全部合理调度
+        tot_quota = timedelta(0)  # 当前任务截止时间前可用时间（包含已分配和未分配时间）
+        tot_alloc = timedelta(0)  # 总时间已分配
+        day_quota = tpd_max  # 总每日用时
+        day_alloc = timedelta(0)  # 已分配
+        for workt, endtime, tstat in collection[:tpd_max_i]:
+            # floating point error
+            tot_quota = tpd_max_work * (
+                workdays(now_time, endtime, worktime)
+                / workdays(now_time, tpd_max_time, worktime)
+            )
+            log.debug(
+                f"workt: {workt}, into {tot_quota - tot_alloc}, day {day_quota - day_alloc}"
+            )
+            if tot_alloc > tot_quota:
+                continue
+            if day_alloc > day_quota:
+                continue
+            day_to_alloc = (day_quota - day_alloc) * (workt / (tot_quota - tot_alloc))
+            if day_to_alloc > workt:
+                day_to_alloc = workt
+            tot_alloc += workt
+            tstat.推荐每日用时 = day_to_alloc
+            log.debug(day_to_alloc)
+            day_alloc += day_to_alloc
+        log.debug(f"allocated par day: {day_alloc}, {day_quota}")
+        log.debug(f"allocated total: {tot_alloc}, {tot_quota}")
 
     Goldie点数 = 长期任务点数 + 短期任务点数
     return StateStats(
