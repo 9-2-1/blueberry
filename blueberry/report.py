@@ -1,6 +1,7 @@
 from typing import TypeVar, Optional, Iterable, Union, Literal, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+import logging
 
 import wcwidth  # type: ignore
 
@@ -13,10 +14,12 @@ from .collect import State
 from .statistic import StateStats, isdisabled, EmptyLongTaskStats, EmptyShortTaskStats
 
 
+log = logging.getLogger(__name__)
+
 Tabulate.PRESERVE_WHITESPACE = True
 
 
-FmtT = TypeVar("FmtT", int, float, datetime, timedelta)
+FmtT = TypeVar("FmtT", int, float, datetime, timedelta, str)
 
 
 def fmt(
@@ -66,6 +69,8 @@ def fmt(
         else:
             vstr = "0 "
         return sign + vstr
+    elif isinstance(x, str):
+        return x
     else:
         raise TypeError("未知类型")
 
@@ -74,32 +79,39 @@ ColorMode = Literal["goldie", "shadowzero", "goldiechange", "highlightreach"]
 
 
 def colorit(
-    value: FmtT, fmtstr: str, colormode: ColorMode, target_reach: bool = False
+    value: FmtT,
+    *,
+    colorpts: Optional[int] = None,
+    colorchange: Optional[int] = None,
+    greyzero: bool = False,
+    grey: bool = False,
+    blue: bool = False,
+    red: bool = False,
 ) -> str:
-    if colormode == "goldie":
-        assert isinstance(value, int)
-        color = goldie_color(value)
-        fmtstr = f"{ESC}[{color}m{fmtstr}{ESC}[0m"
-        return fmtstr
-    elif colormode == "shadowzero":
-        if value in {0, timedelta(0)}:
-            fmtstr = f"{ESC}[{DARKGREY}m{fmtstr}{ESC}[0m"
-        return fmtstr
-    elif colormode == "goldiechange":
-        assert isinstance(value, int)
-        color = goldie_change_color(value)
-        fmtstr = f"{ESC}[{color}m{fmtstr}{ESC}[0m"
-        return fmtstr
-    elif colormode == "highlightreach":
-        if target_reach:
-            if value in {0, timedelta(0)}:
-                fmtstr = f"{ESC}[{DARKGREY}m{fmtstr}{ESC}[0m"
-            else:
-                fmtstr = f"{ESC}[{BLUE}m{fmtstr}{ESC}[0m"
-        # leave it black to emphasis especially it is zero
-        return fmtstr
-    else:
-        raise ValueError(f"未知颜色模式: {colormode}")
+    pstr = fmt(value)
+    if colorpts is not None:
+        color = goldie_color(colorpts)
+        pstr = f"{ESC}[{color}m{pstr}{ESC}[0m"
+    if colorchange is not None:
+        color = goldie_change_color(colorchange)
+        pstr = f"{ESC}[{color}m{pstr}{ESC}[0m"
+    if greyzero:
+        if isinstance(value, str):
+            try:
+                fv = float(value)
+                if fv == 0.0:
+                    pstr = f"{ESC}[{DARKGREY}m{pstr}{ESC}[0m"
+            except ValueError:
+                pass
+        elif value in {0, 0.0, timedelta(0)}:
+            pstr = f"{ESC}[{DARKGREY}m{pstr}{ESC}[0m"
+    if grey:
+        pstr = f"{ESC}[{DARKGREY}m{pstr}{ESC}[0m"
+    if blue:
+        pstr = f"{ESC}[{BLUE}m{pstr}{ESC}[0m"
+    if red:
+        pstr = f"{ESC}[{RED}m{pstr}{ESC}[0m"
+    return pstr
 
 
 ESC = "\033"
@@ -218,21 +230,21 @@ def report_long_tasks(N: ReportData) -> str:
         colorpts = tstat.点数 - (0 if tstat.进度 > 0 else 1)
         table_line = [
             colorit(
-                colorpts, LONG_RUNNING if tstat.进度 > 0 else LONG_WAITING, "goldie"
+                LONG_RUNNING if tstat.进度 > 0 else LONG_WAITING, colorpts=colorpts
             ),
-            task.名称,
+            colorit(task.标题, red=N.time >= task.最晚结束),
             "|",
-            colorit(colorpts, fmt(tstat.点数), "goldie"),
-            colorit(tstat.推荐每日用时, fmt(tstat.推荐每日用时), "shadowzero"),
-            colorit(tstat.进度, fmt(tstat.进度), "shadowzero"),
-            colorit(task.总数 - tstat.进度, fmt(task.总数 - tstat.进度), "shadowzero"),
+            colorit(colorpts, colorpts=colorpts),
+            colorit(tstat.推荐每日用时, greyzero=True),
+            colorit(tstat.进度, greyzero=True),
+            colorit(task.总数 - tstat.进度, greyzero=True),
             (
                 fmt(task.最晚结束 - N.time)
                 if tstat.进度 > 0
                 else fmt(task.最晚开始 - N.time) + "开始"
             ),
-            colorit(tstat.预计需要时间, fmt(tstat.预计需要时间), "shadowzero"),
-            colorit(tstat.每日用时, fmt(tstat.每日用时), "shadowzero"),
+            colorit(tstat.预计需要时间, greyzero=True),
+            colorit(tstat.每日用时, greyzero=True),
         ]
         推荐每日用时 += tstat.推荐每日用时
         总预计时间 += tstat.预计需要时间
@@ -242,13 +254,13 @@ def report_long_tasks(N: ReportData) -> str:
         None,
         "总数",
         "|",
-        colorit(N.stats.长期任务点数, fmt(N.stats.长期任务点数), "goldie"),
-        colorit(推荐每日用时, fmt(推荐每日用时), "shadowzero"),
+        colorit(N.stats.长期任务点数, colorpts=N.stats.长期任务点数),
+        colorit(推荐每日用时, greyzero=True),
         None,
         None,
         None,
-        colorit(总预计时间, fmt(总预计时间), "shadowzero"),
-        colorit(N.stats.总每日平均用时, fmt(N.stats.总每日平均用时), "shadowzero"),
+        colorit(总预计时间, greyzero=True),
+        colorit(N.stats.总每日平均用时, greyzero=True),
     ]
     table_lines.append(total_line)
     report = tabulate(
@@ -290,16 +302,15 @@ def report_short_tasks(N: ReportData) -> str:
         colorpts = tstat.点数 - (0 if task.完成 else 1)
         table_line = [
             colorit(
-                colorpts,
                 SHORT_RUNNING if tstat.用时 > timedelta(0) else SHORT_WAITING,
-                "goldie",
+                colorpts=colorpts,
             ),
-            task.标题,
+            colorit(task.标题, red=N.time >= task.最晚结束),
             "|",
-            colorit(colorpts, fmt(tstat.点数), "goldie"),
-            colorit(tstat.推荐每日用时, fmt(tstat.推荐每日用时), "shadowzero"),
-            colorit(tstat.用时, fmt(tstat.用时), "shadowzero"),
-            colorit(tstat.预计需要时间, fmt(tstat.预计需要时间), "shadowzero"),
+            colorit(colorpts, colorpts=colorpts),
+            colorit(tstat.推荐每日用时, greyzero=True),
+            colorit(tstat.用时, greyzero=True),
+            colorit(tstat.预计需要时间, greyzero=True),
             fmt(task.最晚结束 - N.time),
         ]
         推荐每日用时 += tstat.推荐每日用时
@@ -311,10 +322,10 @@ def report_short_tasks(N: ReportData) -> str:
         None,
         "总数",
         "|",
-        colorit(N.stats.短期任务点数, fmt(N.stats.短期任务点数), "goldie"),
-        colorit(推荐每日用时, fmt(推荐每日用时), "shadowzero"),
-        colorit(总用时, fmt(总用时), "shadowzero"),
-        colorit(总预计时间, fmt(总预计时间), "shadowzero"),
+        colorit(N.stats.短期任务点数, colorpts=N.stats.短期任务点数),
+        colorit(推荐每日用时, greyzero=True),
+        colorit(总用时, greyzero=True),
+        colorit(总预计时间, greyzero=True),
         None,
     ]
     table_lines.append(total_line)
@@ -376,45 +387,41 @@ def report_tasks_diff(
         colorpts = nstat1.点数 - (0 if nstat1.进度 > 0 else 1)
         推荐完成 = nstat1.推荐每日用时 / timedelta(hours=1) * nstat1.速度
         time_reach_recommend = nstat1.用时 - pstat1.用时 >= nstat1.推荐每日用时
-        reach_recommend = nstat1.进度 >= ntask1.总数 or (
+        finished = nstat1.进度 >= ntask1.总数
+        reach_recommend = finished or (
             nstat1.速度 != 0 and nstat1.进度 - pstat1.进度 >= 推荐完成
         )
         table_line: list[Optional[str]] = [
             colorit(
-                colorpts,
-                LONG_RUNNING if not reach_recommend else LONG_WAITING,
-                "goldie",
+                LONG_RUNNING if not reach_recommend else LONG_WAITING, colorpts=colorpts
             ),
-            colorit(0 if reach_recommend else 1, ntask1.标题, "shadowzero"),
+            colorit(
+                ntask1.标题,
+                grey=reach_recommend,
+                red=not finished and N.time >= ntask1.最晚结束,
+            ),
             "|",
             colorit(
                 nstat1.用时 - pstat1.用时,
-                fmt(nstat1.用时 - pstat1.用时),
-                "highlightreach",
-                target_reach=time_reach_recommend,
+                grey=time_reach_recommend and nstat1.用时 == pstat1.用时,
+                blue=time_reach_recommend and nstat1.用时 != pstat1.用时,
             ),
             colorit(
                 nstat1.进度 - pstat1.进度,
-                fmt(nstat1.进度 - pstat1.进度),
-                "highlightreach",
-                target_reach=reach_recommend,
+                grey=reach_recommend and nstat1.进度 == pstat1.进度,
+                blue=reach_recommend and nstat1.进度 != pstat1.进度,
             ),
-            colorit(colorpts, fmt(nstat1.点数), "goldie"),
+            colorit(nstat1.点数, colorpts=colorpts),
+            colorit(nstat1.点数 - pstat1.点数, colorchange=nstat1.点数 - pstat1.点数),
+            colorit(fmt(推荐完成, p2=True), greyzero=True),
+            colorit(nstat1.推荐每日用时, greyzero=True),
             colorit(
-                nstat1.点数 - pstat1.点数,
-                fmt(nstat1.点数 - pstat1.点数, pos=True),
-                "goldiechange",
-            ),
-            colorit(推荐完成, fmt(推荐完成, p2=True), "shadowzero"),
-            colorit(nstat1.推荐每日用时, fmt(nstat1.推荐每日用时), "shadowzero"),
-            colorit(
-                0 if nstat1.进度 >= ntask1.总数 else 1,
                 (
                     fmt(ntask1.最晚结束 - N.time)
                     if nstat1.进度 > 0
                     else fmt(ntask1.最晚开始 - N.time) + "开始"
                 ),
-                "shadowzero",
+                grey=finished,
             ),
         ]
         总用时 += nstat1.用时 - pstat1.用时
@@ -442,33 +449,35 @@ def report_tasks_diff(
         colorpts = nstat2.点数 - (
             0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1
         )
-        reach_recommend = (
-            ntask2.完成 is not None and N.time >= ntask2.完成
-        ) or nstat2.推荐每日用时 == timedelta(0)
+        finished = ntask2.完成 is not None and N.time >= ntask2.完成
+        reach_recommend = finished or nstat2.推荐每日用时 == timedelta(0)
         table_line = [
             colorit(
-                colorpts,
                 SHORT_RUNNING if not reach_recommend else SHORT_WAITING,
-                "goldie",
+                colorpts=colorpts,
             ),
-            colorit(0 if reach_recommend else 1, ntask2.标题, "shadowzero"),
+            colorit(
+                ntask2.标题,
+                grey=reach_recommend,
+                red=not finished and N.time >= ntask2.最晚结束,
+            ),
             "|",
-            colorit(
-                nstat2.用时 - pstat2.用时, fmt(nstat2.用时 - pstat2.用时), "highlightreach", target_reach=reach_recommend
+            colorit(nstat2.用时 - pstat2.用时, greyzero=True, blue=reach_recommend),
+            (
+                colorit("*", blue=True)
+                if ntask2.完成 is not None and N.time >= ntask2.完成
+                else None
             ),
-            colorit(1, "*", "highlightreach", target_reach=True) if ntask2.完成 is not None and N.time >= ntask2.完成 else None,
-            colorit(colorpts, fmt(nstat2.点数), "goldie"),
+            colorit(nstat2.点数, colorpts=colorpts),
             colorit(
-                nstat2.点数 - pstat2.点数,
                 fmt(nstat2.点数 - pstat2.点数, pos=True),
-                "goldiechange",
+                colorchange=nstat2.点数 - pstat2.点数,
             ),
             None,
-            colorit(nstat2.推荐每日用时, fmt(nstat2.推荐每日用时), "shadowzero"),
+            colorit(nstat2.推荐每日用时, greyzero=True),
             colorit(
-                0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1,
-                fmt(ntask2.最晚结束 - N.time),
-                "shadowzero",
+                ntask2.最晚结束 - N.time,
+                grey=finished,
             ),
         ]
         总用时 += nstat2.用时 - pstat2.用时
@@ -481,10 +490,10 @@ def report_tasks_diff(
             "|",
             None,
             None,
-            colorit(其它点数, fmt(其它点数), "goldie"),
-            colorit(其它点数变化, fmt(其它点数变化), "goldiechange"),
+            colorit(其它点数, colorpts=其它点数),
+            colorit(其它点数变化, colorchange=其它点数变化),
             None,
-            colorit(其它推荐每日用时, fmt(其它推荐每日用时), "goldiechange"),
+            colorit(其它推荐每日用时, greyzero=True),
             None,
         ]
         table_lines.append(total_line)
@@ -492,16 +501,15 @@ def report_tasks_diff(
         None,
         total_str,
         "|",
-        colorit(总用时, fmt(总用时), "shadowzero"),
+        colorit(总用时, greyzero=True),
         None,
-        colorit(N.stats.Goldie点数, fmt(N.stats.Goldie点数), "goldie"),
+        colorit(N.stats.Goldie点数, colorpts=N.stats.Goldie点数),
         colorit(
-            N.stats.Goldie点数 - P.stats.Goldie点数,
             fmt(N.stats.Goldie点数 - P.stats.Goldie点数, pos=True),
-            "goldiechange",
+            colorchange=nstat2.点数 - pstat2.点数,
         ),
         None,
-        colorit(推荐每日用时, fmt(推荐每日用时), "shadowzero"),
+        colorit(推荐每日用时, greyzero=True),
         None,
     ]
     table_lines.append(total_line)
