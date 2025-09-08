@@ -349,7 +349,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             )
     for task2 in now_state.短期任务.values():
         if task2.完成 is not None and now_time >= task2.完成:
-            break
+            continue
         tstat2 = 短期任务统计[task2.名称]
         collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
     # 按照截止日期排序
