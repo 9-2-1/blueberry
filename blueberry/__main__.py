@@ -167,14 +167,16 @@ def main() -> None:
                     ):
                         data = load_data(args.workbook)
                         last_mtime = fstat.st_mtime
-                        last_report_time = time.time()
+                        last_report_time = 0.0
                     assert data is not None
-                    report = get_report_and_write(data, args)
-                    print(
-                        HOME + report.replace("\n", CLTEOL + "\n"),
-                        end=CLTEOS,
-                        flush=True,
-                    )
+                    if last_report_time == 0.0 or time.time() - last_report_time > 300:
+                        last_report_time = time.time()
+                        report = get_report_and_write(data, args)
+                        print(
+                            HOME + report.replace("\n", CLTEOL + "\n"),
+                            end=CLTEOS,
+                            flush=True,
+                        )
                 except Exception as e:
                     log.error(e)
                     print(
