@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import time
+import traceback
 
 import dateparser
 
@@ -18,6 +19,8 @@ from .report import (
     ReportData,
 )
 from .ctz_now import ctz_now
+
+log = logging.getLogger(__name__)
 
 
 def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
@@ -141,30 +144,49 @@ def main() -> None:
         live_server(args.workbook, host=args.host, port=args.port)
         return
 
-    ESC = "\033"
-    HOME = ESC + "[H"
-    CLTEOL = ESC + "[K"
-    CLTEOS = ESC + "[J"
     if args.watch:
-        fstat = os.stat(args.workbook)
-        last_mtime = fstat.st_mtime
-        last_report_time = time.time()
-        data = load_data(args.workbook)
-        while True:
+        try:
+            ESC = "\033"
+            HIDECURSOR = ESC + "[?25l"
+            SHOWCURSOR = ESC + "[?25h"
+            HOME = ESC + "[H"
+            CLTEOL = ESC + "[K"
+            CLTEOS = ESC + "[J"
+            print(HIDECURSOR, end="")
             fstat = os.stat(args.workbook)
-            if (
-                fstat.st_mtime != last_mtime
-                or last_report_time is None
-                or time.time() - last_report_time > 3600
-            ):
-                data = load_data(args.workbook)
-                last_mtime = fstat.st_mtime
-                last_report_time = time.time()
-            report = get_report_and_write(data, args)
-            print(
-                HOME + report.replace("\n", CLTEOL + "\n"), end=CLTEOS, flush=True
-            )
-            time.sleep(1)
+            last_mtime = 0.0
+            last_report_time = 0.0
+            data = None
+            while True:
+                try:
+                    fstat = os.stat(args.workbook)
+                    if (
+                        fstat.st_mtime != last_mtime
+                        or last_report_time is None
+                        or time.time() - last_report_time > 3600
+                    ):
+                        data = load_data(args.workbook)
+                        last_mtime = fstat.st_mtime
+                        last_report_time = time.time()
+                    assert data is not None
+                    report = get_report_and_write(data, args)
+                    print(
+                        HOME + report.replace("\n", CLTEOL + "\n"),
+                        end=CLTEOS,
+                        flush=True,
+                    )
+                except Exception as e:
+                    log.error(e)
+                    print(
+                        HOME + traceback.format_exc().replace("\n", CLTEOL + "\n"),
+                        end=CLTEOS,
+                        flush=True,
+                    )
+                    if isinstance(e, KeyboardInterrupt):
+                        raise
+                time.sleep(1)
+        finally:
+            print(SHOWCURSOR, end="")
         return
 
     data = load_data(args.workbook)

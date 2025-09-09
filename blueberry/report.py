@@ -506,7 +506,7 @@ def report_tasks_diff(
         colorit(N.stats.Goldie点数, colorpts=N.stats.Goldie点数),
         colorit(
             fmt(N.stats.Goldie点数 - P.stats.Goldie点数, pos=True),
-            colorchange=nstat2.点数 - pstat2.点数,
+            colorchange=N.stats.Goldie点数 - P.stats.Goldie点数,
         ),
         None,
         colorit(推荐每日用时, greyzero=True),
