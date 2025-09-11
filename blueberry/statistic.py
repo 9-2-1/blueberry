@@ -352,6 +352,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     for task2 in now_state.短期任务.values():
         if task2.完成 is not None and now_time >= task2.完成:
             continue
+        if task2.预计用时 == timedelta(0):
+            continue
         tstat2 = 短期任务统计[task2.名称]
         collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
     # 按照截止日期排序
@@ -362,7 +364,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     tpd_max_time = now_time
     tpd_max_work = timedelta(0)
     if collection and workdays(now_time, collection[0][1], worktime) <= 0:
-        log.info("overdue!")
+        log.info(f"overdue!, {collection[0]}, {now_time}")
         # overdue!
         for i, (workt, endtime, tstat) in enumerate(collection):
             tot_worktime = workdays(now_time, endtime, worktime)
