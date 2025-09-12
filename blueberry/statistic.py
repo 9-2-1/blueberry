@@ -362,6 +362,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 )
             )
     for task2 in now_state.短期任务.values():
+        if workdays(task2.最早开始, now_time, worktime) > 1.0:
+            continue
         if task2.完成 is not None and now_time >= task2.完成:
             continue
         if task2.预计用时 == timedelta(0):
