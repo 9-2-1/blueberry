@@ -209,7 +209,7 @@ def report_long_tasks(N: ReportData) -> str:
     table_colalign = [
         "left",
         "left",
-        "left",  # "|"
+        "center",  # "|"
         "decimal",
         "right",
         "decimal",
@@ -284,7 +284,7 @@ def report_short_tasks(N: ReportData) -> str:
     table_colalign = [
         "left",
         "left",
-        "left",  # "|"
+        "center",  # "|"
         "decimal",
         "right",
         "right",
@@ -353,7 +353,7 @@ def report_tasks_diff(
     table_colalign = [
         "left",
         "left",
-        "left",  # "|"
+        "center",  # "|"
         "right",
         "decimal",
         "decimal",
