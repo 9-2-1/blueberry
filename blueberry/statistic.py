@@ -330,12 +330,12 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
 
     # 推荐时长
     tpd_keep = timedelta(0)
-    collection: list[tuple[timedelta, datetime, TaskStats]] = []
+    collection: list[tuple[timedelta, datetime, bool, TaskStats]] = []
     for task1 in now_state.长期任务.values():
         tstat1 = 长期任务统计[task1.名称]
         if task1.保持安排 == "+":
             # 保持安排，不计入调度
-            leftdays = workdays( now_time, task1.最晚结束, worktime)
+            leftdays = workdays(now_time, task1.最晚结束, worktime)
             if leftdays < 1.0:
                 tpd = tstat1.预计需要时间
             else:
@@ -350,6 +350,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 (
                     timedelta(minutes=20),
                     task1.最晚开始,
+                    False,
                     tstat1,
                 )
             )
@@ -358,18 +359,21 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 (
                     tstat1.预计需要时间,
                     task1.最晚结束,
+                    False,
                     tstat1,
                 )
             )
     for task2 in now_state.短期任务.values():
-        if workdays(task2.最早开始, now_time, worktime) > 1.0:
-            continue
+        skip_today = False
+        if workdays(now_time, task2.最早开始, worktime) > 1.0:
+            log.info(f"task {task2.名称} is skipped")
+            skip_today = True
         if task2.完成 is not None and now_time >= task2.完成:
             continue
         if task2.预计用时 == timedelta(0):
             continue
         tstat2 = 短期任务统计[task2.名称]
-        collection.append((tstat2.预计需要时间, task2.最晚结束, tstat2))
+        collection.append((tstat2.预计需要时间, task2.最晚结束, skip_today, tstat2))
     # 按照截止日期排序
     collection.sort(key=lambda x: x[1])
     tot_work = timedelta(0)
@@ -380,7 +384,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     if collection and workdays(now_time, collection[0][1], worktime) <= 0:
         log.info(f"overdue!, {collection[0]}, {now_time}")
         # overdue!
-        for i, (workt, endtime, tstat) in enumerate(collection):
+        for i, (workt, endtime, skip_today, tstat) in enumerate(collection):
             tot_worktime = workdays(now_time, endtime, worktime)
             if tot_worktime > 0:
                 break
@@ -390,7 +394,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             tstat.推荐每日用时 = workt
         tpd_max = timedelta(seconds=-1)  # overdue!
     else:
-        for i, (workt, endtime, tstat) in enumerate(collection):
+        for i, (workt, endtime, skip_today, tstat) in enumerate(collection):
             tot_work += workt
             tot_worktime = workdays(now_time, endtime, worktime)
             # tot_worktime > 0
@@ -405,7 +409,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         tot_alloc = timedelta(0)  # 总时间已分配
         day_quota = tpd_max  # 总每日用时
         day_alloc = timedelta(0)  # 已分配
-        for workt, endtime, tstat in collection[:tpd_max_i]:
+        for workt, endtime, skip_today, tstat in collection[:tpd_max_i]:
             # floating point error
             tot_quota = tpd_max_work * (
                 workdays(now_time, endtime, worktime)
@@ -423,6 +427,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             if day_to_alloc > workt:
                 day_to_alloc = workt
             tot_alloc += workt
+            if skip_today:
+                day_to_alloc = timedelta(0)
             tstat.推荐每日用时 = day_to_alloc
             log.debug(day_to_alloc)
             day_alloc += day_to_alloc
@@ -440,7 +446,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         建议每日用时=tpd_max + tpd_keep,
         下一关键时间=tpd_max_time,
         下一关键节点任务量时长=tpd_max_work,
-        每日保持用时 = tpd_keep,
+        每日保持用时=tpd_keep,
     )
 
 
