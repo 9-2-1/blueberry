@@ -332,6 +332,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     tpd_keep = timedelta(0)
     collection: list[tuple[timedelta, datetime, bool, TaskStats]] = []
     for task1 in now_state.长期任务.values():
+        if isdisabled(task1.名称, now_state.选择排序偏好):
+            continue
         tstat1 = 长期任务统计[task1.名称]
         if task1.保持安排 == "+":
             # 保持安排，不计入调度
@@ -364,6 +366,8 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 )
             )
     for task2 in now_state.短期任务.values():
+        if isdisabled(task2.名称, now_state.选择排序偏好):
+            continue
         skip_today = False
         if workdays(now_time, task2.最早开始, worktime) > 1.0:
             log.info(f"task {task2.名称} is skipped")
