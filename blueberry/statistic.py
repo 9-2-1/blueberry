@@ -83,6 +83,7 @@ class StateStats:
     建议每日用时: timedelta
     下一关键时间: datetime
     下一关键节点任务量时长: timedelta
+    每日保持用时: timedelta
 
 
 def workday_time(time: datetime, worktime: list[WorktimeModel]) -> timedelta:
@@ -328,9 +329,20 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         总每日平均用时 = tot_speed.每日用时
 
     # 推荐时长
+    tpd_keep = timedelta(0)
     collection: list[tuple[timedelta, datetime, TaskStats]] = []
     for task1 in now_state.长期任务.values():
         tstat1 = 长期任务统计[task1.名称]
+        if task1.保持安排 == "+":
+            # 保持安排，不计入调度
+            leftdays = workdays( now_time, task1.最晚结束, worktime)
+            if leftdays < 1.0:
+                tpd = tstat1.预计需要时间
+            else:
+                tpd = tstat1.预计需要时间 / leftdays
+            tstat1.推荐每日用时 = tpd
+            tpd_keep += tpd
+            continue
         if tstat1.进度 >= task1.总数:
             continue
         if tstat1.进度 == 0:
@@ -423,9 +435,10 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         短期任务点数=短期任务点数,
         短期任务统计=短期任务统计,
         总每日平均用时=总每日平均用时,
-        建议每日用时=tpd_max,
+        建议每日用时=tpd_max + tpd_keep,
         下一关键时间=tpd_max_time,
         下一关键节点任务量时长=tpd_max_work,
+        每日保持用时 = tpd_keep,
     )
 
 

@@ -31,6 +31,7 @@ class LongTaskModel(AppendOnly):
     最晚结束: datetime
     最晚开始: datetime
     总数: float
+    保持安排: Optional[Literal["+"]] = None
 
 
 class ProgressModel(BaseModel):

@@ -178,7 +178,7 @@ def report_head(N: ReportData) -> str:
     report = f"blueberry - {N.time.strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += f"近期每日平均用时: {fmt(N.stats.总每日平均用时)}\n"
     report += f"建议每日用时: {fmt(N.stats.建议每日用时)} "
-    report += f"(在 {fmt(N.stats.下一关键时间)} ({fmt(N.stats.下一关键时间 - N.time)})"
+    report += f"(每日保持 {fmt(N.stats.每日保持用时)} + 在 {fmt(N.stats.下一关键时间)} ({fmt(N.stats.下一关键时间 - N.time)})"
     report += f" 前完成 {fmt(N.stats.下一关键节点任务量时长)} 工作量)"
     return report
 
