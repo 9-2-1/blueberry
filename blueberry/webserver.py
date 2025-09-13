@@ -11,9 +11,6 @@ from .report import fmt
 from .ctz_now import ctz_now
 
 
-logging.basicConfig(level=logging.INFO)
-
-
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
     return aiohttp.web.FileResponse("web/index.html")
 
