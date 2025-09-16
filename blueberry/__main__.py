@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import traceback
+from datetime import timedelta
 
 import dateparser
 
@@ -16,6 +17,7 @@ from .report import (
     report_long_tasks,
     report_short_tasks,
     report_tasks_diff,
+    report_tasks_plan,
     ReportData,
 )
 from .ctz_now import ctz_now
@@ -29,6 +31,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
         now_time = args.time
 
     yesterday_time = now_time.replace(hour=0, minute=0, second=0)
+    tomorrow_time = yesterday_time + timedelta(days=1)
 
     if args.from_ is not None:
         prev_time = args.from_
@@ -36,6 +39,13 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
         prev_time = yesterday_time
     else:
         prev_time = None
+
+    if args.end is not None:
+        end_time = args.end
+    elif args.daily:
+        end_time = yesterday_time
+    else:
+        end_time = None
 
     now_state = collect_state(data, now_time)
     now_stats = statistic(now_state, now_time)
@@ -46,12 +56,20 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
         prev_data = ReportData(prev_time, prev_state, prev_stats)
-        report += report_tasks_diff(
-            now_data,
-            prev_data,
-            hide_decay=args.change,
-            total_str="今日总数" if args.daily else "总数",
-        )
+        if end_time:
+            report += report_tasks_plan(
+                now_data,
+                prev_data,
+                end_time,
+                total_str="今日总数" if args.daily else "总数",
+            )
+        else:
+            report += report_tasks_diff(
+                now_data,
+                prev_data,
+                hide_decay=args.change,
+                total_str="今日总数" if args.daily else "总数",
+            )
     else:
         report += report_worktime(now_data) + "\n\n"
         report += report_long_tasks(now_data) + "\n\n"
@@ -113,6 +131,13 @@ def main() -> None:
         action="store",
         type=dateparser.parse,
         help="当前时间(默认为现在)",
+    )
+    parser.add_argument(
+        "-e",
+        "--end",
+        action="store",
+        type=dateparser.parse,
+        help="结束时间(可选)",
     )
     parser.add_argument(
         "-d", "--daily", action="store_true", help="设置开始时间为今天零点"
