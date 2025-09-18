@@ -7,8 +7,10 @@ import logging
 from .parser import Data, load_data
 from .collect import collect_state
 from .statistic import statistic
-from .report import fmt
+from .fmtcolor import fmt
 from .ctz_now import ctz_now
+
+log = logging.getLogger(__name__)
 
 
 async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:

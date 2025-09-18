@@ -1,25 +1,20 @@
 from dataclasses import dataclass
-from datetime import datetime, timedelta, time as datetime_time
+from datetime import datetime, timedelta
 import math
 import logging
 
 from .models import (
-    WorktimeModel,
     ProgressModel,
-    PickerModel,
     LongTaskModel,
     ShortTaskModel,
 )
 from .collect import State
+from .speed import TaskSpeed, calculate_speed
+from .picker import isdisabled
+from .workdays import workdays
 from .config import 推荐用时
 
 log = logging.getLogger(__name__)
-
-
-@dataclass
-class TaskSpeed:
-    速度: float  # per hour
-    每日用时: timedelta
 
 
 @dataclass
@@ -77,129 +72,6 @@ class StateStats:
     短期任务点数: int
     短期任务统计: dict[str, ShortTaskStats]
     总每日平均用时: timedelta
-
-
-def workday_time(time: datetime, worktime: list[WorktimeModel]) -> timedelta:
-    # 计算某个时间点当天已经过了多少工作时间。
-    delta = timedelta(0)
-    for wt in worktime:
-        wt_begin = datetime.combine(time, wt.开始)
-        wt_end = datetime.combine(time, wt.结束)
-        # 跨天的情况
-        if wt_end <= wt_begin:
-            wt_end += timedelta(days=1)
-        if time < wt_begin:
-            pass
-        elif time < wt_end:
-            delta += time - wt_begin
-        else:
-            delta += wt_end - wt_begin
-    return delta
-
-
-def workday_time_total(worktime: list[WorktimeModel]) -> timedelta:
-    total_time_day = timedelta(0)
-    today = datetime.today()
-    for wt in worktime:
-        wt_begin = datetime.combine(today, wt.开始)
-        wt_end = datetime.combine(today, wt.结束)
-        if wt_end <= wt_begin:
-            wt_end += timedelta(days=1)
-        total_time_day += wt_end - wt_begin
-    return total_time_day
-
-
-def workdays(begin: datetime, end: datetime, worktime: list[WorktimeModel]) -> float:
-    # 计算两个时间之间的工作时长
-    # 注意，这里将一天工作时长视为“一天”。
-    # 如果实际的工作时长是 3 小时，而一天的工作时间和是 6 小时，那么就会得到 0.5 天
-
-    # 为了避免过多的分类讨论，使用定数法
-    begin_date = begin.date()
-    end_date = end.date()
-
-    datediff = (end_date - begin_date) / timedelta(days=1)
-
-    begin_time_day = workday_time(begin, worktime)
-    end_time_day = workday_time(end, worktime)
-    total_time_day = workday_time_total(worktime)
-
-    timediff = (end_time_day - begin_time_day) / total_time_day
-    return datediff + timediff
-
-
-def calculate_speed(
-    progress: list[ProgressModel],
-    begin_time: datetime,
-    now_time: datetime,
-    worktime: list[WorktimeModel],
-) -> TaskSpeed:
-    # 近期记录
-    MIN_TOT_TIME = timedelta(hours=6)
-    MIN_TOT_DAYSPAN = 4  # workdays
-    tot_progress = 0.0
-    tot_time = timedelta(0)
-    tot_dayspan = workdays(progress[-1].时间, now_time, worktime)  # workdays: float
-    # 这里需要注意时间的计算方式：
-    # 进度记录描述的是 “花费‘用时’时间后，在‘时间’让进度达到了‘进度’”。
-    # 选择“开始的记录”后“开始的记录”本身的时间不包含在总时间内（那是起点）
-    log.debug("calculate_speed:")
-    log.debug("-" * 80)
-    for i in reversed(range(len(progress))):
-        add_progress = (
-            progress[i].进度 - progress[i - 1].进度 if i != 0 else progress[i].进度
-        )
-        add_time = progress[i].用时
-        prev_node_time = progress[i - 1].时间 if i != 0 else begin_time
-        add_dayspan = workdays(prev_node_time, progress[i].时间, worktime)
-        if add_dayspan < 0:
-            add_dayspan = 0
-        add_ratio = 0.0
-        if tot_time >= MIN_TOT_TIME:
-            pass
-        elif tot_time + add_time <= MIN_TOT_TIME:
-            add_ratio = 1.0
-        else:
-            k = (MIN_TOT_TIME - tot_time) / add_time
-            if add_ratio < k:
-                add_ratio = k
-        if tot_dayspan >= MIN_TOT_DAYSPAN:
-            pass
-        elif tot_dayspan + add_dayspan <= MIN_TOT_DAYSPAN:
-            add_ratio = 1.0
-        else:
-            k = (MIN_TOT_DAYSPAN - tot_dayspan) / add_dayspan
-            if add_ratio < k:
-                add_ratio = k
-        tot_time += add_time * add_ratio
-        tot_dayspan += add_dayspan * add_ratio
-        tot_progress += add_progress * add_ratio
-        log.debug(
-            f"{add_ratio:5.0%} t{add_time} d{add_dayspan:.2f} T{tot_time} D{tot_dayspan:.2f} @{progress[i].时间} #{progress[i].名称}"
-        )
-        if add_ratio < 1.0:
-            break
-    log.debug("=" * 80)
-    if tot_time == timedelta(0):
-        return TaskSpeed(
-            速度=0.0,
-            每日用时=timedelta(0),
-        )
-    速度 = tot_progress / (tot_time / timedelta(hours=1))
-    每日用时 = tot_time / tot_dayspan
-    log.debug(f"速度: {速度:.2f} 每日用时: {每日用时}")
-    return TaskSpeed(
-        速度=速度,
-        每日用时=每日用时,
-    )
-
-
-def isdisabled(task_name: str, preference: list[PickerModel]) -> bool:
-    for picker in preference:
-        if task_name == picker.名称:
-            if picker.禁用 == "-":
-                return True
-    return False
 
 
 def statistic(now_state: State, now_time: datetime) -> StateStats:
@@ -328,30 +200,3 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         短期任务统计=短期任务统计,
         总每日平均用时=总每日平均用时,
     )
-
-
-def test_workdays() -> None:
-    worktime = [
-        WorktimeModel(
-            开始=datetime_time(4, 0),
-            结束=datetime_time(8, 0),
-        ),
-        WorktimeModel(
-            开始=datetime_time(12, 0),
-            结束=datetime_time(16, 0),
-        ),
-        WorktimeModel(
-            开始=datetime_time(22, 0),
-            结束=datetime_time(0, 0),
-        ),
-    ]
-    prev_time = datetime.now()
-    now_time = prev_time
-    for i in range(100):
-        now_time += timedelta(hours=0.5)
-        days = workdays(prev_time, now_time, worktime)
-        print(prev_time, now_time, days)
-    for i in range(100):
-        prev_time += timedelta(hours=0.5)
-        days = workdays(prev_time, now_time, worktime)
-        print(prev_time, now_time, days)

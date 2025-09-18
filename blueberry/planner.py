@@ -2,7 +2,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
 
-from .statistic import workdays, isdisabled, StateStats
+from .picker import isdisabled
+from .statistic import StateStats
+from .workdays import workdays
 from .collect import State
 from .models import WorktimeModel
 
