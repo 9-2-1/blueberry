@@ -12,6 +12,7 @@ import tabulate as Tabulate
 from .models import AppendOnly, PickerModel
 from .collect import State
 from .statistic import StateStats, isdisabled, EmptyLongTaskStats, EmptyShortTaskStats
+from .planner import Plan
 
 
 log = logging.getLogger(__name__)
@@ -177,9 +178,13 @@ def prefer(items: Iterable[T], preference: list[PickerModel]) -> list[T]:
 def report_head(N: ReportData) -> str:
     report = f"blueberry - {N.time.strftime('%Y-%m-%d %H:%M:%S')}\n"
     report += f"近期每日平均用时: {fmt(N.stats.总每日平均用时)}\n"
-    report += f"建议每日用时: {fmt(N.stats.建议每日用时)} "
-    report += f"(每日保持 {fmt(N.stats.每日保持用时)} + 在 {fmt(N.stats.下一关键时间)} ({fmt(N.stats.下一关键时间 - N.time)})"
-    report += f" 前完成 {fmt(N.stats.下一关键节点任务量时长)} 工作量)"
+    return report
+
+
+def report_plan_head(R: Plan, now_time: datetime) -> str:
+    report = f"建议用时: {fmt(R.总建议用时)} "
+    report += f"(保持 {fmt(R.保持用时)} + 在 {fmt(R.下一关键时间)} ({fmt(R.下一关键时间 - now_time)})"
+    report += f" 前完成 {fmt(R.下一关键节点任务量时长)} 工作量)"
     return report
 
 
@@ -199,7 +204,6 @@ def report_long_tasks(N: ReportData) -> str:
         "长期任务",
         "|",
         "点数",
-        "推荐时长",
         "完成",
         "剩余",
         "剩余时间",
@@ -211,14 +215,12 @@ def report_long_tasks(N: ReportData) -> str:
         "left",
         "center",  # "|"
         "decimal",
-        "right",
         "decimal",
         "decimal",
         "right",
         "right",
         "right",
     ]
-    推荐每日用时 = timedelta(0)
     总预计时间 = timedelta(0)
     table_lines: list[Union[Sequence[Optional[str]], str]] = []
     for task in prefer(N.state.长期任务.values(), N.state.选择排序偏好):
@@ -226,7 +228,7 @@ def report_long_tasks(N: ReportData) -> str:
         # 跳过完成0分项
         if tstat.进度 >= task.总数 and N.time >= task.最晚结束:
             continue
-        # [None, "名称", "|", "点数", "推荐时长", "完成", "剩余", "剩余时间", "预计用时", "每日平均用时"]
+        # [None, "名称", "|", "点数", "完成", "剩余", "剩余时间", "预计用时", "每日平均用时"]
         colorpts = tstat.点数 - (0 if tstat.进度 > 0 else 1)
         table_line = [
             colorit(
@@ -235,7 +237,6 @@ def report_long_tasks(N: ReportData) -> str:
             colorit(task.标题, red=N.time >= task.最晚结束),
             "|",
             colorit(fmt(colorpts, pos=True), colorpts=colorpts),
-            colorit(tstat.推荐每日用时, greyzero=True),
             colorit(tstat.进度, greyzero=True),
             colorit(task.总数 - tstat.进度, greyzero=True),
             (
@@ -246,7 +247,6 @@ def report_long_tasks(N: ReportData) -> str:
             colorit(tstat.预计需要时间, greyzero=True),
             colorit(tstat.每日用时, greyzero=True),
         ]
-        推荐每日用时 += tstat.推荐每日用时
         总预计时间 += tstat.预计需要时间
         table_lines.append(table_line)
     table_lines.append(SEPARATING_LINE)
@@ -255,7 +255,6 @@ def report_long_tasks(N: ReportData) -> str:
         "总数",
         "|",
         colorit(fmt(N.stats.长期任务点数, pos=True), colorpts=N.stats.长期任务点数),
-        colorit(推荐每日用时, greyzero=True),
         None,
         None,
         None,
@@ -276,7 +275,6 @@ def report_short_tasks(N: ReportData) -> str:
         "短期任务",
         "|",
         "点数",
-        "推荐时长",
         "用时",
         "预计时间",
         "剩余时间",
@@ -289,9 +287,7 @@ def report_short_tasks(N: ReportData) -> str:
         "right",
         "right",
         "right",
-        "right",
     ]
-    推荐每日用时 = timedelta(0)
     总用时 = timedelta(0)
     总预计时间 = timedelta(0)
     for task in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
@@ -308,12 +304,10 @@ def report_short_tasks(N: ReportData) -> str:
             colorit(task.标题, red=N.time >= task.最晚结束),
             "|",
             colorit(fmt(colorpts, pos=True), colorpts=colorpts),
-            colorit(tstat.推荐每日用时, greyzero=True),
             colorit(tstat.用时, greyzero=True),
             colorit(tstat.预计需要时间, greyzero=True),
             fmt(task.最晚结束 - N.time),
         ]
-        推荐每日用时 += tstat.推荐每日用时
         总用时 += tstat.用时
         总预计时间 += tstat.预计需要时间
         table_lines.append(table_line)
@@ -323,7 +317,6 @@ def report_short_tasks(N: ReportData) -> str:
         "总数",
         "|",
         colorit(fmt(N.stats.短期任务点数, pos=True), colorpts=N.stats.短期任务点数),
-        colorit(推荐每日用时, greyzero=True),
         colorit(总用时, greyzero=True),
         colorit(总预计时间, greyzero=True),
         None,
@@ -469,7 +462,12 @@ def report_tasks_diff(
 
 
 def report_tasks_plan(
-    N: ReportData, P: ReportData, end_time: datetime, *, total_str: str = "总数"
+    N: ReportData,
+    P: ReportData,
+    R: Plan,
+    end_time: datetime,
+    *,
+    total_str: str = "总数",
 ) -> str:
     table_headers = [
         "",
@@ -495,7 +493,7 @@ def report_tasks_plan(
         "right",
         "right",
     ]
-    推荐每日用时 = timedelta(0)
+    总推荐每日用时 = timedelta(0)
     总用时 = timedelta(0)
     table_lines: list[Union[Sequence[Optional[str]], str]] = []
     for ntask1 in prefer(N.state.长期任务.values(), N.state.选择排序偏好):
@@ -507,11 +505,12 @@ def report_tasks_plan(
         # 跳过完成0分项
         if pstat1.进度 >= ntask1.总数 and N.time >= ntask1.最晚结束:
             continue
-        推荐每日用时 += nstat1.推荐每日用时
+        推荐每日用时 = R.建议用时.get(ntask1.名称, timedelta(0))
+        总推荐每日用时 += 推荐每日用时
         # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]
         colorpts = nstat1.点数 - (0 if nstat1.进度 > 0 else 1)
-        推荐完成 = nstat1.推荐每日用时 / timedelta(hours=1) * nstat1.速度
-        time_reach_recommend = nstat1.用时 - pstat1.用时 >= nstat1.推荐每日用时
+        推荐完成 = 推荐每日用时 / timedelta(hours=1) * nstat1.速度
+        time_reach_recommend = nstat1.用时 - pstat1.用时 >= 推荐每日用时
         finished = nstat1.进度 >= ntask1.总数
         reach_recommend = finished or (
             nstat1.速度 != 0 and nstat1.进度 - pstat1.进度 >= 推荐完成
@@ -542,7 +541,7 @@ def report_tasks_plan(
                 colorchange=nstat1.点数 - pstat1.点数,
             ),
             colorit(fmt(推荐完成, p2=True), greyzero=True),
-            colorit(nstat1.推荐每日用时, greyzero=True),
+            colorit(推荐每日用时, greyzero=True),
             colorit(
                 (
                     fmt(ntask1.最晚结束 - N.time)
@@ -567,13 +566,14 @@ def report_tasks_plan(
             and P.time >= ntask2.最晚结束
         ):
             continue
-        推荐每日用时 += nstat2.推荐每日用时
+        推荐每日用时 = R.建议用时.get(ntask2.名称, timedelta(0))
+        总推荐每日用时 += 推荐每日用时
         # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
         colorpts = nstat2.点数 - (
             0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1
         )
         finished = ntask2.完成 is not None and N.time >= ntask2.完成
-        reach_recommend = finished or nstat2.推荐每日用时 == timedelta(0)
+        reach_recommend = finished or 推荐每日用时 == timedelta(0)
         table_line = [
             colorit(
                 SHORT_RUNNING if not reach_recommend else SHORT_WAITING,
@@ -597,7 +597,7 @@ def report_tasks_plan(
                 colorchange=nstat2.点数 - pstat2.点数,
             ),
             None,
-            colorit(nstat2.推荐每日用时, greyzero=True),
+            colorit(推荐每日用时, greyzero=True),
             colorit(
                 ntask2.最晚结束 - N.time,
                 grey=finished,
@@ -618,7 +618,7 @@ def report_tasks_plan(
             colorchange=N.stats.Goldie点数 - P.stats.Goldie点数,
         ),
         None,
-        colorit(推荐每日用时, greyzero=True),
+        colorit(总推荐每日用时, greyzero=True),
         None,
     ]
     table_lines.append(total_line)

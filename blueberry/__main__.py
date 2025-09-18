@@ -10,6 +10,7 @@ import dateparser
 from .parser import load_data, Data
 from .collect import collect_state
 from .statistic import statistic
+from .planner import planner, PlanData
 from .webserver import live_server
 from .report import (
     report_head,
@@ -57,9 +58,16 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
         prev_stats = statistic(prev_state, prev_time)
         prev_data = ReportData(prev_time, prev_state, prev_stats)
         if end_time:
+            plan = planner(
+                PlanData(now_time, now_state, now_stats),
+                PlanData(prev_time, prev_state, prev_stats),
+                end_time,
+                data.工作时段,
+            )
             report += report_tasks_plan(
                 now_data,
                 prev_data,
+                plan,
                 end_time,
                 total_str="今日总数" if args.daily else "总数",
             )

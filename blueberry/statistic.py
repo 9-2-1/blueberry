@@ -29,7 +29,6 @@ class TaskStats:
     最晚结束: datetime
     点数: int
     用时: timedelta
-    推荐每日用时: timedelta  # 最后一次统计
 
 
 @dataclass
@@ -53,7 +52,6 @@ def EmptyLongTaskStats(task: LongTaskModel) -> LongTaskStats:
         最晚结束=task.最晚结束,
         点数=0,
         用时=timedelta(0),
-        推荐每日用时=timedelta(0),
         进度=0,
         速度=0,
         每日用时=timedelta(0),
@@ -68,7 +66,6 @@ def EmptyShortTaskStats(task: ShortTaskModel) -> ShortTaskStats:
         最晚结束=task.最晚结束,
         点数=0,
         用时=timedelta(0),
-        推荐每日用时=timedelta(0),
     )
 
 
@@ -76,14 +73,10 @@ def EmptyShortTaskStats(task: ShortTaskModel) -> ShortTaskStats:
 class StateStats:
     Goldie点数: int
     长期任务点数: int
-    长期任务统计: dict[str, LongTaskStats]  # TODO
+    长期任务统计: dict[str, LongTaskStats]
     短期任务点数: int
-    短期任务统计: dict[str, ShortTaskStats]  # TODO
+    短期任务统计: dict[str, ShortTaskStats]
     总每日平均用时: timedelta
-    建议每日用时: timedelta
-    下一关键时间: datetime
-    下一关键节点任务量时长: timedelta
-    每日保持用时: timedelta
 
 
 def workday_time(time: datetime, worktime: list[WorktimeModel]) -> timedelta:
@@ -249,7 +242,6 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             最晚结束=task1.最晚结束,
             点数=点数,
             用时=用时,
-            推荐每日用时=timedelta(0),
             进度=进度,
             速度=速度.速度,
             每日用时=速度.每日用时,
@@ -314,7 +306,6 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             最晚结束=task2.最晚结束,
             点数=点数,
             用时=用时,
-            推荐每日用时=timedelta(0),
         )
         短期任务点数 += 点数
 
@@ -328,117 +319,6 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         )
         总每日平均用时 = tot_speed.每日用时
 
-    # 推荐时长
-    tpd_keep = timedelta(0)
-    collection: list[tuple[timedelta, datetime, bool, TaskStats]] = []
-    for task1 in now_state.长期任务.values():
-        if isdisabled(task1.名称, now_state.选择排序偏好):
-            continue
-        tstat1 = 长期任务统计[task1.名称]
-        if task1.保持安排 == "+":
-            # 保持安排，不计入调度
-            leftdays = workdays(now_time, task1.最晚结束, worktime)
-            if leftdays < 1.0:
-                tpd = tstat1.预计需要时间
-            else:
-                tpd = tstat1.预计需要时间 / leftdays
-            tstat1.推荐每日用时 = tpd
-            tpd_keep += tpd
-            continue
-        if tstat1.进度 >= task1.总数:
-            continue
-        if tstat1.进度 == 0:
-            collection.append(
-                (
-                    timedelta(minutes=20),
-                    task1.最晚开始,
-                    False,
-                    tstat1,
-                )
-            )
-        else:
-            collection.append(
-                (
-                    tstat1.预计需要时间,
-                    task1.最晚结束,
-                    False,
-                    tstat1,
-                )
-            )
-    for task2 in now_state.短期任务.values():
-        if isdisabled(task2.名称, now_state.选择排序偏好):
-            continue
-        skip_today = False
-        if workdays(now_time, task2.最早开始, worktime) > 1.0:
-            log.info(f"task {task2.名称} is skipped")
-            skip_today = True
-        if task2.完成 is not None and now_time >= task2.完成:
-            continue
-        if task2.预计用时 == timedelta(0):
-            continue
-        tstat2 = 短期任务统计[task2.名称]
-        collection.append((tstat2.预计需要时间, task2.最晚结束, skip_today, tstat2))
-    # 按照截止日期排序
-    collection.sort(key=lambda x: x[1])
-    tot_work = timedelta(0)
-    tpd_max = timedelta(0)
-    tpd_max_i = 0
-    tpd_max_time = now_time
-    tpd_max_work = timedelta(0)
-    if collection and workdays(now_time, collection[0][1], worktime) <= 0:
-        log.info(f"overdue!, {collection[0]}, {now_time}")
-        # overdue!
-        for i, (workt, endtime, skip_today, tstat) in enumerate(collection):
-            tot_worktime = workdays(now_time, endtime, worktime)
-            if tot_worktime > 0:
-                break
-            tpd_max_i = i + 1
-            tpd_max_time = endtime
-            tpd_max_work += workt
-            tstat.推荐每日用时 = workt
-        tpd_max = timedelta(seconds=-1)  # overdue!
-    else:
-        for i, (workt, endtime, skip_today, tstat) in enumerate(collection):
-            tot_work += workt
-            tot_worktime = workdays(now_time, endtime, worktime)
-            # tot_worktime > 0
-            tpd = tot_work / tot_worktime
-            if tpd > tpd_max:
-                tpd_max_i = i + 1
-                tpd_max = tpd
-                tpd_max_time = endtime
-                tpd_max_work = tot_work
-        # 对tpd_max_i（关键点）之前的任务全部合理调度
-        tot_quota = timedelta(0)  # 当前任务截止时间前可用时间（包含已分配和未分配时间）
-        tot_alloc = timedelta(0)  # 总时间已分配
-        day_quota = tpd_max  # 总每日用时
-        day_alloc = timedelta(0)  # 已分配
-        for workt, endtime, skip_today, tstat in collection[:tpd_max_i]:
-            # floating point error
-            tot_quota = tpd_max_work * (
-                workdays(now_time, endtime, worktime)
-                / workdays(now_time, tpd_max_time, worktime)
-            )
-            log.debug(
-                f"workt: {workt}, into {tot_quota - tot_alloc}, day {day_quota - day_alloc}"
-            )
-            # float point error tolerance
-            if tot_alloc > tot_quota:
-                continue
-            if day_alloc > day_quota:
-                continue
-            day_to_alloc = (day_quota - day_alloc) * (workt / (tot_quota - tot_alloc))
-            if day_to_alloc > workt:
-                day_to_alloc = workt
-            tot_alloc += workt
-            if skip_today:
-                day_to_alloc = timedelta(0)
-            tstat.推荐每日用时 = day_to_alloc
-            log.debug(day_to_alloc)
-            day_alloc += day_to_alloc
-        log.debug(f"allocated par day: {day_alloc}, {day_quota}")
-        log.debug(f"allocated total: {tot_alloc}, {tot_quota}")
-
     Goldie点数 = 长期任务点数 + 短期任务点数
     return StateStats(
         Goldie点数=Goldie点数,
@@ -447,10 +327,6 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         短期任务点数=短期任务点数,
         短期任务统计=短期任务统计,
         总每日平均用时=总每日平均用时,
-        建议每日用时=tpd_max + tpd_keep,
-        下一关键时间=tpd_max_time,
-        下一关键节点任务量时长=tpd_max_work,
-        每日保持用时=tpd_keep,
     )
 
 
