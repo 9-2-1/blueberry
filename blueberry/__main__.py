@@ -12,15 +12,10 @@ from .collect import collect_state
 from .statistic import statistic
 from .planner import planner, PlanData
 from .webserver import live_server
-from .report import (
-    report_head,
-    report_worktime,
-    report_long_tasks,
-    report_short_tasks,
-    report_tasks_diff,
-    report_tasks_plan,
-    ReportData,
-)
+from .report_base import report_head, report_worktime, ReportData
+from .report_task import report_long_tasks, report_short_tasks
+from .report_diff import report_tasks_diff
+from .report_plan import report_tasks_plan
 from .ctz_now import ctz_now
 
 log = logging.getLogger(__name__)
