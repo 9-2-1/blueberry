@@ -12,7 +12,7 @@ from .collect import collect_state
 from .statistic import statistic
 from .planner import planner, PlanData
 from .webserver import live_server
-from .report_base import report_head, report_worktime, ReportData
+from .report_base import report_head, report_plan_head, report_worktime, ReportData
 from .report_task import report_long_tasks, report_short_tasks
 from .report_diff import report_tasks_diff
 from .report_plan import report_tasks_plan
@@ -39,7 +39,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
     if args.end is not None:
         end_time = args.end
     elif args.daily:
-        end_time = yesterday_time + timedelta(days=1)
+        end_time = tomorrow_time
     else:
         end_time = None
 
@@ -48,6 +48,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
     now_data = ReportData(now_time, now_state, now_stats)
 
     report = report_head(now_data) + "\n\n"
+    report += report_worktime(now_data) + "\n\n"
     if prev_time:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
@@ -59,6 +60,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
                 end_time,
                 data.工作时段,
             )
+            report += report_plan_head(plan, now_time) + "\n\n"
             report += report_tasks_plan(
                 now_data,
                 prev_data,
