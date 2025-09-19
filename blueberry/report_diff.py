@@ -7,7 +7,13 @@ from tabulate import tabulate, SEPARATING_LINE
 from .picker import prefer
 from .statistic import EmptyLongTaskStats, EmptyShortTaskStats
 from .fmtcolor import fmt, colorit
-from .report_base import ReportData, LONG_RUNNING, LONG_WAITING, SHORT_RUNNING, SHORT_WAITING
+from .report_base import (
+    ReportData,
+    LONG_RUNNING,
+    LONG_WAITING,
+    SHORT_RUNNING,
+    SHORT_WAITING,
+)
 
 log = logging.getLogger(__name__)
 
@@ -18,7 +24,6 @@ def report_tasks_diff(
     table_headers = [
         "",
         "名称",
-        "|",
         "用时",
         "完成",
         "点数",
@@ -27,7 +32,6 @@ def report_tasks_diff(
     table_colalign = [
         "left",
         "left",
-        "center",  # "|"
         "right",
         "decimal",
         "decimal",
@@ -50,7 +54,7 @@ def report_tasks_diff(
             其它点数 += nstat1.点数
             其它点数变化 += nstat1.点数 - pstat1.点数
             continue
-        # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]
+        # [None, "名称", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]
         finished = nstat1.进度 >= ntask1.总数
         colorpts = nstat1.点数 - (0 if nstat1.进度 > 0 else 1)
         table_line: list[Optional[str]] = [
@@ -60,7 +64,6 @@ def report_tasks_diff(
                 grey=finished,
                 red=not finished and N.time >= ntask1.最晚结束,
             ),
-            "|",
             fmt(nstat1.用时 - pstat1.用时),
             fmt(nstat1.进度 - pstat1.进度),
             colorit(fmt(nstat1.点数, pos=True), colorpts=colorpts),
@@ -88,7 +91,7 @@ def report_tasks_diff(
             其它点数 += nstat2.点数
             其它点数变化 += nstat2.点数 - pstat2.点数
             continue
-        # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
+        # [None, "名称", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
         colorpts = nstat2.点数 - (
             0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1
         )
@@ -103,7 +106,6 @@ def report_tasks_diff(
                 grey=finished,
                 red=not finished and N.time >= ntask2.最晚结束,
             ),
-            "|",
             colorit(nstat2.用时 - pstat2.用时, greyzero=True),
             ("*" if ntask2.完成 is not None and N.time >= ntask2.完成 else None),
             colorit(fmt(nstat2.点数, pos=True), colorpts=colorpts),
@@ -119,7 +121,6 @@ def report_tasks_diff(
         total_line = [
             None,
             "其它",
-            "|",
             None,
             None,
             colorit(fmt(其它点数, pos=True), colorpts=其它点数),
@@ -129,7 +130,6 @@ def report_tasks_diff(
     total_line = [
         None,
         total_str,
-        "|",
         colorit(总用时, greyzero=True),
         None,
         colorit(fmt(N.stats.Goldie点数, pos=True), colorpts=N.stats.Goldie点数),

@@ -6,7 +6,13 @@ from tabulate import tabulate, SEPARATING_LINE
 
 from .picker import prefer
 from .fmtcolor import fmt, colorit
-from .report_base import ReportData, LONG_RUNNING, LONG_WAITING, SHORT_RUNNING, SHORT_WAITING
+from .report_base import (
+    ReportData,
+    LONG_RUNNING,
+    LONG_WAITING,
+    SHORT_RUNNING,
+    SHORT_WAITING,
+)
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +21,6 @@ def report_long_tasks(N: ReportData) -> str:
     table_headers = [
         "",
         "长期任务",
-        "|",
         "点数",
         "完成",
         "剩余",
@@ -26,7 +31,6 @@ def report_long_tasks(N: ReportData) -> str:
     table_colalign = [
         "left",
         "left",
-        "center",  # "|"
         "decimal",
         "decimal",
         "decimal",
@@ -41,14 +45,13 @@ def report_long_tasks(N: ReportData) -> str:
         # 跳过完成0分项
         if tstat.进度 >= task.总数 and N.time >= task.最晚结束:
             continue
-        # [None, "名称", "|", "点数", "完成", "剩余", "剩余时间", "预计用时", "每日平均用时"]
+        # [None, "名称", "点数", "完成", "剩余", "剩余时间", "预计用时", "每日平均用时"]
         colorpts = tstat.点数 - (0 if tstat.进度 > 0 else 1)
         table_line = [
             colorit(
                 LONG_RUNNING if tstat.进度 > 0 else LONG_WAITING, colorpts=colorpts
             ),
             colorit(task.标题, red=N.time >= task.最晚结束),
-            "|",
             colorit(fmt(colorpts, pos=True), colorpts=colorpts),
             colorit(tstat.进度, greyzero=True),
             colorit(task.总数 - tstat.进度, greyzero=True),
@@ -66,7 +69,6 @@ def report_long_tasks(N: ReportData) -> str:
     total_line = [
         None,
         "总数",
-        "|",
         colorit(fmt(N.stats.长期任务点数, pos=True), colorpts=N.stats.长期任务点数),
         None,
         None,
@@ -86,7 +88,6 @@ def report_short_tasks(N: ReportData) -> str:
     table_headers = [
         "",
         "短期任务",
-        "|",
         "点数",
         "用时",
         "预计时间",
@@ -95,7 +96,6 @@ def report_short_tasks(N: ReportData) -> str:
     table_colalign = [
         "left",
         "left",
-        "center",  # "|"
         "decimal",
         "right",
         "right",
@@ -115,7 +115,6 @@ def report_short_tasks(N: ReportData) -> str:
                 colorpts=colorpts,
             ),
             colorit(task.标题, red=N.time >= task.最晚结束),
-            "|",
             colorit(fmt(colorpts, pos=True), colorpts=colorpts),
             colorit(tstat.用时, greyzero=True),
             colorit(tstat.预计需要时间, greyzero=True),
@@ -128,7 +127,6 @@ def report_short_tasks(N: ReportData) -> str:
     total_line = [
         None,
         "总数",
-        "|",
         colorit(fmt(N.stats.短期任务点数, pos=True), colorpts=N.stats.短期任务点数),
         colorit(总用时, greyzero=True),
         colorit(总预计时间, greyzero=True),

@@ -9,7 +9,13 @@ from .picker import prefer
 from .statistic import EmptyLongTaskStats, EmptyShortTaskStats
 from .planner import Plan
 from .fmtcolor import fmt, colorit
-from .report_base import ReportData, LONG_RUNNING, LONG_WAITING, SHORT_RUNNING, SHORT_WAITING
+from .report_base import (
+    ReportData,
+    LONG_RUNNING,
+    LONG_WAITING,
+    SHORT_RUNNING,
+    SHORT_WAITING,
+)
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +31,6 @@ def report_tasks_plan(
     table_headers = [
         "",
         "名称",
-        "|",
         "用时",
         "完成",
         "点数",
@@ -37,7 +42,6 @@ def report_tasks_plan(
     table_colalign = [
         "left",
         "left",
-        "center",  # "|"
         "right",
         "decimal",
         "decimal",
@@ -77,7 +81,6 @@ def report_tasks_plan(
                 grey=reach_recommend,
                 red=not finished and N.time >= ntask1.最晚结束,
             ),
-            "|",
             colorit(
                 nstat1.用时 - pstat1.用时,
                 grey=time_reach_recommend and nstat1.用时 == pstat1.用时,
@@ -137,7 +140,6 @@ def report_tasks_plan(
                 grey=reach_recommend,
                 red=not finished and N.time >= ntask2.最晚结束,
             ),
-            "|",
             colorit(nstat2.用时 - pstat2.用时, greyzero=True, blue=reach_recommend),
             (
                 colorit("*", blue=True)
@@ -162,7 +164,6 @@ def report_tasks_plan(
     total_line = [
         None,
         total_str,
-        "|",
         colorit(总用时, greyzero=True),
         None,
         colorit(fmt(N.stats.Goldie点数, pos=True), colorpts=N.stats.Goldie点数),
