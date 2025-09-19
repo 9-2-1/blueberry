@@ -142,9 +142,7 @@ def main() -> None:
         type=dateparser.parse,
         help="结束时间(可选)",
     )
-    parser.add_argument(
-        "-d", "--daily", action="store_true", help="设置开始时间为今天零点"
-    )
+    parser.add_argument("-d", "--daily", action="store_true", help="显示每日建议数量")
     # 详细格式设定
     parser.add_argument(
         "-c",
@@ -215,9 +213,10 @@ def main() -> None:
                     if isinstance(e, KeyboardInterrupt):
                         raise
                 time.sleep(1)
+        except KeyboardInterrupt:
+            return
         finally:
             print(SHOWCURSOR, end="")
-        return
 
     data = load_data(args.workbook)
     report = get_report_and_write(data, args)
