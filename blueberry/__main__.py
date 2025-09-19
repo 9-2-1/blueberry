@@ -47,8 +47,8 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
     now_stats = statistic(now_state, now_time)
     now_data = ReportData(now_time, now_state, now_stats)
 
-    report = report_head(now_data) + "\n\n"
-    report += report_worktime(now_data) + "\n\n"
+    report = report_head(now_data) + "\n"
+    report += report_worktime(now_data) + "\n"
     if prev_time:
         prev_state = collect_state(data, prev_time)
         prev_stats = statistic(prev_state, prev_time)
@@ -69,6 +69,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
                 total_str="今日总数" if args.daily else "总数",
             )
         else:
+            report += "\n"
             report += report_tasks_diff(
                 now_data,
                 prev_data,
@@ -76,9 +77,8 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
                 total_str="今日总数" if args.daily else "总数",
             )
     else:
-        report += report_worktime(now_data) + "\n\n"
         report += report_long_tasks(now_data) + "\n\n"
-        report += report_short_tasks(now_data) + "\n\n"
+        report += report_short_tasks(now_data)
 
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:

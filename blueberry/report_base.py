@@ -37,7 +37,7 @@ T = TypeVar("T", bound=AppendOnly)
 
 def report_head(N: ReportData) -> str:
     report = f"blueberry - {N.time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-    report += f"近期每日平均用时: {fmt(N.stats.总每日平均用时)}\n"
+    report += f"近期每日平均用时: {fmt(N.stats.总每日平均用时)}"
     return report
 
 
