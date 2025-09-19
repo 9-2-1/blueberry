@@ -39,7 +39,7 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
     if args.end is not None:
         end_time = args.end
     elif args.daily:
-        end_time = yesterday_time
+        end_time = yesterday_time + timedelta(days=1)
     else:
         end_time = None
 
