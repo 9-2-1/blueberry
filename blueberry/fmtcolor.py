@@ -70,6 +70,7 @@ def colorit(
     grey: bool = False,
     blue: bool = False,
     red: bool = False,
+    orange: bool = False,
 ) -> str:
     pstr = fmt(value)
     if colorpts is not None:
@@ -94,6 +95,8 @@ def colorit(
         pstr = f"{ESC}[{BLUE}m{pstr}{ESC}[0m"
     if red:
         pstr = f"{ESC}[{RED}m{pstr}{ESC}[0m"
+    if orange:
+        pstr = f"{ESC}[{ORANGE}m{pstr}{ESC}[0m"
     return pstr
 
 

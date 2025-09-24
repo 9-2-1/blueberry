@@ -80,6 +80,7 @@ def report_tasks_plan(
                 ntask1.标题,
                 grey=reach_recommend,
                 red=not finished and N.time >= ntask1.最晚结束,
+                orange=not finished and end_time >= ntask1.最晚结束,
             ),
             colorit(
                 nstat1.用时 - pstat1.用时,
@@ -139,6 +140,7 @@ def report_tasks_plan(
                 ntask2.标题,
                 grey=reach_recommend,
                 red=not finished and N.time >= ntask2.最晚结束,
+                orange=not finished and end_time >= ntask2.最晚结束,
             ),
             colorit(nstat2.用时 - pstat2.用时, greyzero=True, blue=reach_recommend),
             (
