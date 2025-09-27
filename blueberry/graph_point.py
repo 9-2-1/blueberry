@@ -8,6 +8,7 @@ from .parser import load_data
 from .config import 推荐用时
 from .collect import collect_state
 from .statistic import statistic
+from .planner import planner, PlanData
 
 # 设置中文字体
 plt.rcParams["font.family"] = ["SimHei"]
@@ -44,11 +45,14 @@ def get_goldie_points_loads_history(
         state = collect_state(data, current_time)
         try:
             stats = statistic(state, current_time)
+            current_data = PlanData(current_time, state, stats)
+            tomorrow_time = current_time + timedelta(days=1)
+            plan = planner(current_data, current_data, tomorrow_time, state.工作时段)
             history.append(
                 (
                     current_time,
                     stats.Goldie点数,
-                    stats.建议每日用时,
+                    plan.总建议用时,
                     stats.总每日平均用时,
                 )
             )
