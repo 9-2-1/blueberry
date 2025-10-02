@@ -84,9 +84,9 @@ def plot_goldie_points(history: List[Tuple[datetime, int]]) -> None:
     plt.ylabel("Goldie 点数", fontsize=14)
 
     # 设置x轴日期格式
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))  # type: ignore
     plt.gca().xaxis.set_major_locator(
-        mdates.DayLocator(interval=1)
+        mdates.DayLocator(interval=1)  # type: ignore
     )  # 每1天显示一个刻度
     plt.gcf().autofmt_xdate()  # 自动旋转日期标签
 
@@ -140,9 +140,9 @@ def plot_daily_time(history: List[Tuple[datetime, timedelta, timedelta]]) -> Non
     plt.ylabel("时长 (小时)", fontsize=14)
 
     # 设置x轴日期格式
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))
+    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%m/%d"))  # type: ignore
     plt.gca().xaxis.set_major_locator(
-        mdates.DayLocator(interval=1)
+        mdates.DayLocator(interval=1)  # type: ignore
     )  # 每1天显示一个刻度
     plt.gcf().autofmt_xdate()  # 自动旋转日期标签
 
