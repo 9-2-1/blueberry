@@ -49,18 +49,20 @@ def planner(
     for task1 in N.state.长期任务.values():
         if isdisabled(task1.名称, N.state.选择排序偏好):
             continue
-        tstat1 = P.stats.长期任务统计.get(task1.名称, None)
-        if tstat1 is None:
-            tstat1 = EmptyLongTaskStats(task1)
-        if tstat1.进度 >= task1.总数:
+        tstat1 = N.stats.长期任务统计[task1.名称]
+        pstat1 = P.stats.长期任务统计.get(task1.名称, None)
+        if pstat1 is None:
+            pstat1 = EmptyLongTaskStats(task1)
+        if pstat1.进度 >= task1.总数:
             continue
+        预计需要时间 = timedelta(minutes=20)
+        if pstat1.进度 > 0:
+            预计需要时间 = timedelta(hours=1) * (task1.总数 - pstat1.进度) / tstat1.速度
         collection.append(
             TaskItem(
                 name=task1.名称,
-                worktime=(
-                    tstat1.预计需要时间 if tstat1.进度 > 0 else timedelta(minutes=20)
-                ),
-                endtime=task1.最晚结束 if tstat1.进度 > 0 else task1.最晚开始,
+                worktime=预计需要时间,
+                endtime=task1.最晚结束 if pstat1.进度 > 0 else task1.最晚开始,
                 keep=task1.保持安排 == "+",
                 skipped=False,
             )
