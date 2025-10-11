@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TypedDict
+import json
 import os
 import aiohttp.web
 import logging
@@ -35,6 +36,22 @@ def live_server(workbook: str, host: str, port: int) -> None:
             points_cache[pos_time] = point
         return point
 
+    class Points(TypedDict):
+        time: float
+        progress: float
+
+    def get_number() -> dict[str, list[Points]]:
+        nonlocal data
+        if data is None:
+            raise ValueError("data is None")
+        numbers :  dict[str, list[Points]] = {}
+        for name in collect_state(data, ctz_now()).长期任务.keys():
+            numbers[name] = []
+        for record in data.长期进度:
+            if record.名称 in numbers:
+                numbers[record.名称].append(Points(time=record.时间.timestamp(), progress=record.进度))
+        return numbers
+
     def update_data() -> bool:
         nonlocal points_cache, data, data_timestamp, data_size
         wstat = os.stat(workbook)
@@ -54,8 +71,14 @@ def live_server(workbook: str, host: str, port: int) -> None:
         point = get_point(pos_time)
         return aiohttp.web.Response(text=fmt(point))
 
+    async def get_numbers(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        update_data()
+        numbers = get_number()
+        return aiohttp.web.Response(text=json.dumps(numbers, ensure_ascii=False, separators=(",", ":")))
+
     app = aiohttp.web.Application()
     app.add_routes([aiohttp.web.get("/get_points", get_points)])
+    app.add_routes([aiohttp.web.get("/get_numbers", get_numbers)])
     app.add_routes([aiohttp.web.get("/", index_html)])
     app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host=host, port=port)
