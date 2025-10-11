@@ -9,10 +9,10 @@ const colorMap = {
   default: "rgb(212, 212, 212)",
 };
 
-const appDiv = document.getElementById("app") as HTMLElement;
-const pointsDiv = document.getElementById("points") as HTMLElement;
-const nowtimeDiv = document.getElementById("nowtime") as HTMLElement;
-const nowdateDiv = document.getElementById("nowdate") as HTMLElement;
+let appDiv: HTMLElement;
+let pointsDiv: HTMLElement;
+let nowtimeDiv: HTMLElement;
+let nowdateDiv: HTMLElement;
 
 function updatePoints() {
   const point_thresholds = [-100, -50, 0, 50, 100];
@@ -67,6 +67,11 @@ function updateTime() {
 }
 
 window.onload = function () {
+  appDiv = document.getElementById("app")!;
+  pointsDiv = document.getElementById("points")!;
+  nowtimeDiv = document.getElementById("nowtime")!;
+  nowdateDiv = document.getElementById("nowdate")!;
+
   updatePoints();
   updateTime();
   const nosleep = new NoSleep();
