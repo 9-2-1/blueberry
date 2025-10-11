@@ -29,3 +29,7 @@ wheel
 
 # ???
 blueberry.dat
+
+# typescript
+*.js
+!NoSleep.js

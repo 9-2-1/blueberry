@@ -1,0 +1,13 @@
+{
+  "include": ["./web_ts/**/*"],
+  "compilerOptions": {
+    "target": "es2017",
+    "module": "commonjs",
+    "outDir": "./web",
+    "rootDir": "./web_ts",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
