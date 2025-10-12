@@ -34,18 +34,24 @@ def live_server(workbook: str, host: str, port: int) -> None:
     data: Optional[Data] = None
     data_timestamp: Optional[float] = None
     data_size: Optional[int] = None
-    points_cache: dict[datetime, int] = {}
+
+    pointcache_value: int = 0
+    pointcache_time: float = 0
+
+    numbercache_value: str = ""
+    numbercache_time: float = 0
 
     def get_point(pos_time: datetime) -> int:
-        nonlocal points_cache, data, data_timestamp, data_size
-        point = points_cache.get(pos_time)
-        if point is None:
-            if data is None:
-                raise ValueError("data is None")
-            pos_state = collect_state(data, pos_time)
-            pos_statistic = statistic(pos_state, pos_time)
-            point = pos_statistic.Goldie点数
-            points_cache[pos_time] = point
+        nonlocal pointcache_value, pointcache_time, data, data_timestamp, data_size
+        if pos_time.timestamp() == pointcache_time:
+            return pointcache_value
+        if data is None:
+            raise ValueError("data is None")
+        pos_state = collect_state(data, pos_time)
+        pos_statistic = statistic(pos_state, pos_time)
+        point = pos_statistic.Goldie点数
+        pointcache_value = point
+        pointcache_time = pos_time.timestamp()
         return point
 
     class Points(TypedDict):
@@ -60,10 +66,12 @@ def live_server(workbook: str, host: str, port: int) -> None:
         endtime: float
         progress: list[Points]
 
-    def get_number() -> list[Report]:
-        nonlocal data
+    def get_number() -> str:  # json.dumps(list[Report])
+        nonlocal numbercache_value, numbercache_time, data
         if data is None:
             raise ValueError("data is None")
+        if numbercache_time + 300 > ctz_now().timestamp():  # 5min
+            return numbercache_value
         progresses: dict[str, list[Points]] = {}
         for name in collect_state(data, ctz_now()).长期任务.keys():
             progresses[name] = []
@@ -87,17 +95,21 @@ def live_server(workbook: str, host: str, port: int) -> None:
                     progress=progresses[name],
                 )
             )
-        return reports
+        result_json = json.dumps(reports, ensure_ascii=False, separators=(",", ":"))
+        numbercache_value = result_json
+        numbercache_time = ctz_now().timestamp()
+        return numbercache_value
 
     def update_data() -> bool:
-        nonlocal points_cache, data, data_timestamp, data_size
+        nonlocal pointcache_time, numbercache_time, data, data_timestamp, data_size
         wstat = os.stat(workbook)
         if data_timestamp == wstat.st_mtime and data_size == wstat.st_size:
             return False
         data = load_data(workbook)
         data_timestamp = wstat.st_mtime
         data_size = wstat.st_size
-        points_cache.clear()
+        pointcache_time = 0
+        numbercache_time = 0
         return True
 
     async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -111,9 +123,9 @@ def live_server(workbook: str, host: str, port: int) -> None:
     async def get_numbers(request: aiohttp.web.Request) -> aiohttp.web.Response:
         update_data()
         reports = get_number()
-        return aiohttp.web.Response(
-            text=json.dumps(reports, ensure_ascii=False, separators=(",", ":"))
-        )
+        response = aiohttp.web.Response(text=reports)
+        response.enable_compression(False, 9)
+        return response
 
     app = aiohttp.web.Application()
     app.add_routes([aiohttp.web.get("/get_points", get_points)])
