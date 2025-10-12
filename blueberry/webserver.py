@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional, TypedDict
 import json
+import time
+import calendar
 import os
 import aiohttp.web
 import logging
@@ -38,8 +40,7 @@ def live_server(workbook: str, host: str, port: int) -> None:
     pointcache_value: int = 0
     pointcache_time: float = 0
 
-    numbercache_value: str = ""
-    numbercache_time: float = 0
+    numbercache_value: Optional[str] = None
 
     def get_point(pos_time: datetime) -> int:
         nonlocal pointcache_value, pointcache_time, data, data_timestamp, data_size
@@ -67,41 +68,40 @@ def live_server(workbook: str, host: str, port: int) -> None:
         progress: list[Points]
 
     def get_number() -> str:  # json.dumps(list[Report])
-        nonlocal numbercache_value, numbercache_time, data
-        if data is None:
-            raise ValueError("data is None")
-        if numbercache_time + 300 > ctz_now().timestamp():  # 5min
-            return numbercache_value
-        progresses: dict[str, list[Points]] = {}
-        for name in collect_state(data, ctz_now()).长期任务.keys():
-            progresses[name] = []
-        for record in data.长期进度:
-            if record.名称 in progresses:
-                progresses[record.名称].append(
-                    Points(time=record.时间.timestamp(), done=record.进度)
+        nonlocal numbercache_value, data
+        assert data is not None
+        if numbercache_value is None:
+            progresses: dict[str, list[Points]] = {}
+            for name in collect_state(data, ctz_now()).长期任务.keys():
+                progresses[name] = []
+            for record in data.长期进度:
+                if record.名称 in progresses:
+                    progresses[record.名称].append(
+                        Points(time=record.时间.timestamp(), done=record.进度)
+                    )
+            reports: list[Report] = []
+            state = collect_state(data, ctz_now())
+            stats = statistic(state, ctz_now())
+            for name, task in state.长期任务.items():
+                tstat = stats.长期任务统计[name]
+                reports.append(
+                    Report(
+                        name=task.名称,
+                        tot=task.总数,
+                        speed=tstat.速度,
+                        starttime=task.最晚开始.timestamp(),
+                        endtime=task.最晚结束.timestamp(),
+                        progress=progresses[name],
+                    )
                 )
-        reports: list[Report] = []
-        state = collect_state(data, ctz_now())
-        stats = statistic(state, ctz_now())
-        for name, task in state.长期任务.items():
-            tstat = stats.长期任务统计[name]
-            reports.append(
-                Report(
-                    name=task.名称,
-                    tot=task.总数,
-                    speed=tstat.速度,
-                    starttime=task.最晚开始.timestamp(),
-                    endtime=task.最晚结束.timestamp(),
-                    progress=progresses[name],
-                )
+            assert data_timestamp is not None
+            numbercache_value = json.dumps(
+                reports, ensure_ascii=False, separators=(",", ":")
             )
-        result_json = json.dumps(reports, ensure_ascii=False, separators=(",", ":"))
-        numbercache_value = result_json
-        numbercache_time = ctz_now().timestamp()
         return numbercache_value
 
     def update_data() -> bool:
-        nonlocal pointcache_time, numbercache_time, data, data_timestamp, data_size
+        nonlocal pointcache_time, numbercache_value, data, data_timestamp, data_size
         wstat = os.stat(workbook)
         if data_timestamp == wstat.st_mtime and data_size == wstat.st_size:
             return False
@@ -109,7 +109,7 @@ def live_server(workbook: str, host: str, port: int) -> None:
         data_timestamp = wstat.st_mtime
         data_size = wstat.st_size
         pointcache_time = 0
-        numbercache_time = 0
+        numbercache_value = None
         return True
 
     async def get_points(request: aiohttp.web.Request) -> aiohttp.web.Response:
@@ -121,9 +121,30 @@ def live_server(workbook: str, host: str, port: int) -> None:
         return aiohttp.web.Response(text=fmt(point))
 
     async def get_numbers(request: aiohttp.web.Request) -> aiohttp.web.Response:
+        nonlocal data_timestamp, numbercache_value
         update_data()
+
+        assert data_timestamp is not None
+        last_modified = time.strftime(
+            "%a, %d %b %Y %H:%M:%S GMT", time.gmtime(int(data_timestamp))
+        )
+        if_modified_since = request.headers.get("If-Modified-Since", "?")
+        try:
+            req_timestamp = calendar.timegm(
+                time.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT")
+            )
+        except ValueError:
+            req_timestamp = int(data_timestamp) - 1
+        headers = {
+            "Last-Modified": last_modified,
+            "Cache-Control": "no-cache",
+            "Content-Type": "application/json",
+        }
+        if int(data_timestamp) == int(req_timestamp):
+            return aiohttp.web.Response(status=304, headers=headers)
+
         reports = get_number()
-        response = aiohttp.web.Response(text=reports)
+        response = aiohttp.web.Response(text=reports, headers=headers)
         response.enable_compression(False, 9)
         return response
 
