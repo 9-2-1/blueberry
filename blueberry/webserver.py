@@ -18,6 +18,18 @@ async def index_html(request: aiohttp.web.Request) -> aiohttp.web.FileResponse:
     return aiohttp.web.FileResponse("web/index.html")
 
 
+async def numberhell_index_html_redirect(
+    request: aiohttp.web.Request,
+) -> aiohttp.web.Response:
+    return aiohttp.web.Response(status=302, headers={"Location": "/numberhell/"})
+
+
+async def numberhell_index_html(
+    request: aiohttp.web.Request,
+) -> aiohttp.web.FileResponse:
+    return aiohttp.web.FileResponse("web/numberhell/index.html")
+
+
 def live_server(workbook: str, host: str, port: int) -> None:
     data: Optional[Data] = None
     data_timestamp: Optional[float] = None
@@ -38,19 +50,44 @@ def live_server(workbook: str, host: str, port: int) -> None:
 
     class Points(TypedDict):
         time: float
-        progress: float
+        done: float
 
-    def get_number() -> dict[str, list[Points]]:
+    class Report(TypedDict):
+        name: str
+        tot: float
+        speed: float
+        starttime: float
+        endtime: float
+        progress: list[Points]
+
+    def get_number() -> list[Report]:
         nonlocal data
         if data is None:
             raise ValueError("data is None")
-        numbers :  dict[str, list[Points]] = {}
+        progresses: dict[str, list[Points]] = {}
         for name in collect_state(data, ctz_now()).长期任务.keys():
-            numbers[name] = []
+            progresses[name] = []
         for record in data.长期进度:
-            if record.名称 in numbers:
-                numbers[record.名称].append(Points(time=record.时间.timestamp(), progress=record.进度))
-        return numbers
+            if record.名称 in progresses:
+                progresses[record.名称].append(
+                    Points(time=record.时间.timestamp(), done=record.进度)
+                )
+        reports: list[Report] = []
+        state = collect_state(data, ctz_now())
+        stats = statistic(state, ctz_now())
+        for name, task in state.长期任务.items():
+            tstat = stats.长期任务统计[name]
+            reports.append(
+                Report(
+                    name=task.名称,
+                    tot=task.总数,
+                    speed=tstat.速度,
+                    starttime=task.最晚开始.timestamp(),
+                    endtime=task.最晚结束.timestamp(),
+                    progress=progresses[name],
+                )
+            )
+        return reports
 
     def update_data() -> bool:
         nonlocal points_cache, data, data_timestamp, data_size
@@ -73,12 +110,16 @@ def live_server(workbook: str, host: str, port: int) -> None:
 
     async def get_numbers(request: aiohttp.web.Request) -> aiohttp.web.Response:
         update_data()
-        numbers = get_number()
-        return aiohttp.web.Response(text=json.dumps(numbers, ensure_ascii=False, separators=(",", ":")))
+        reports = get_number()
+        return aiohttp.web.Response(
+            text=json.dumps(reports, ensure_ascii=False, separators=(",", ":"))
+        )
 
     app = aiohttp.web.Application()
     app.add_routes([aiohttp.web.get("/get_points", get_points)])
     app.add_routes([aiohttp.web.get("/get_numbers", get_numbers)])
     app.add_routes([aiohttp.web.get("/", index_html)])
+    app.add_routes([aiohttp.web.get("/numberhell", numberhell_index_html_redirect)])
+    app.add_routes([aiohttp.web.get("/numberhell/", numberhell_index_html)])
     app.add_routes([aiohttp.web.static("/", "web")])
     aiohttp.web.run_app(app, host=host, port=port)
