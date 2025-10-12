@@ -165,6 +165,8 @@ def main() -> None:
 
     if args.verbose:
         logging.basicConfig(level=logging.DEBUG)
+    elif args.live:
+        logging.basicConfig(level=logging.INFO)
     else:
         logging.basicConfig(level=logging.WARNING)
 
