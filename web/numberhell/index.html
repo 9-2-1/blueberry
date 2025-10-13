@@ -9,13 +9,31 @@
       name="description"
       content="显示 Blueberry 相关的数字，任务进度，等等"
     />
-    <link rel="stylesheet" href="index.css?t=20251012103556" />
+    <link rel="stylesheet" href="index.css?t=20251013082115" />
   </head>
   <body>
     <h1>Number Hell</h1>
-    <div id="numbers"></div>
+    <nav>
+      <input type="checkbox" id="cfg_show_finished" />
+      <label for="cfg_show_finished">显示已完成任务</label>
+      <label for="cfg_time_range">时间范围</label>
+      <select id="cfg_time_range">
+        <option value="0">全部</option>
+        <option value="30">30日</option>
+        <option value="15">15日</option>
+        <option value="7">7日</option>
+        <option value="3">3日</option>
+        <option value="1">1日</option>
+      </select>
+      <input type="checkbox" id="cfg_smooth_line" />
+      <label for="cfg_smooth_line">平滑曲线(未实现)</label>
+    </nav>
+    <div id="numbers">
+      <div id="tot"></div>
+      <div id="tasks"></div>
+    </div>
     <script src="oklab.js?t=20251004170646"></script>
-    <script src="index.js?t=20251012103556"></script>
-    <script src="svggraph.js?t=20251012103556"></script>
+    <script src="index.js?t=20251013083015"></script>
+    <script src="svggraph.js?t=20251013081818"></script>
   </body>
 </html>

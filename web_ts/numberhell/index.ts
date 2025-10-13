@@ -38,15 +38,83 @@ let numbers: NumberTask[] = [];
 
 let numberMap: Record<string, HTMLDivElement> = {};
 
+let workloadHistory: { time: number; left: number }[] = [];
+
+function updateWorkload() {
+  const tnow = new Date().getTime() / 1000;
+  let base = 0;
+  let records: { time: number; fin: number }[] = [];
+  for (const task of numbers) {
+    if (task.speed == 0) {
+      continue;
+    }
+    let cur = 0;
+    for (const prog of task.progress) {
+      const fin = prog.done - cur;
+      records.push({ time: prog.time, fin: fin / task.speed });
+      cur = prog.done;
+    }
+
+    base += (task.tot - cur) / task.speed;
+  }
+  records.sort((a, b) => b.time - a.time);
+  workloadHistory = [{ time: tnow, left: base }];
+  for (const rec of records) {
+    workloadHistory.unshift({ time: rec.time, left: base });
+    base += rec.fin;
+  }
+}
+
 async function updateNumberAsync() {
   numbers = await (await fetch("../get_numbers")).json();
+  updateWorkload();
 }
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let config = {
+  showFinished: false,
+  timeRange: 0,
+  smoothLine: false,
+};
+
+function updateConfig() {
+  const showFinishedElement = document.getElementById(
+    "cfg_show_finished",
+  )! as HTMLInputElement;
+  const timeRangeElement = document.getElementById(
+    "cfg_time_range",
+  )! as HTMLSelectElement;
+  const smoothLineElement = document.getElementById(
+    "cfg_smooth_line",
+  )! as HTMLInputElement;
+  const cfg = {
+    showFinished: showFinishedElement.checked,
+    timeRange: parseInt(timeRangeElement.value),
+    smoothLine: smoothLineElement.checked,
+  };
+  config = cfg;
+}
+
+function onConfigChange() {
+  updateConfig();
+  initNumbersDiv();
+  updateNumberDiv();
+}
 window.addEventListener("load", async () => {
+  updateConfig();
+  // 监听配置变化
+  document
+    .getElementById("cfg_show_finished")!
+    .addEventListener("change", onConfigChange);
+  document
+    .getElementById("cfg_time_range")!
+    .addEventListener("change", onConfigChange);
+  document
+    .getElementById("cfg_smooth_line")!
+    .addEventListener("change", onConfigChange);
   while (1) {
     try {
       await updateNumberAsync();
@@ -65,14 +133,32 @@ window.addEventListener("resize", () => {
 });
 
 function initNumbersDiv() {
-  const numberDiv = document.getElementById("numbers")!;
-  numberDiv.innerHTML = "";
+  const tnow = new Date().getTime() / 1000;
   numberMap = {};
-  for (const number of numbers) {
+
+  const totDiv = document.getElementById("tot")!;
+  totDiv.innerHTML = "";
+  const cardDiv = document.createElement("div");
+  cardDiv.classList.add("number_card");
+  cardDiv.classList.add("number_tot_card");
+  totDiv.appendChild(cardDiv);
+  numberMap["<tot>"] = cardDiv;
+
+  const numberDiv = document.getElementById("tasks")!;
+  numberDiv.innerHTML = "";
+  for (const task of numbers) {
+    if (
+      !config.showFinished &&
+      task.progress.length > 0 &&
+      task.progress[task.progress.length - 1].done >= task.tot &&
+      tnow >= task.endtime
+    ) {
+      continue;
+    }
     const cardDiv = document.createElement("div");
     cardDiv.classList.add("number_card");
     numberDiv.appendChild(cardDiv);
-    numberMap[number.name] = cardDiv;
+    numberMap[task.name] = cardDiv;
   }
 }
 
@@ -90,6 +176,7 @@ function updateNumberDiv() {
       renderDataCard(cardDiv, task.name, task, tnow);
     }
   }
+  renderWorkload(numberMap["<tot>"], tnow);
 }
 
 // 同一主题色系列颜色
@@ -144,9 +231,12 @@ function renderDataCard(
   if (xMax < task.endtime) {
     xMax = task.endtime;
   }
+  if (config.timeRange > 0) {
+    xMax = Math.min(xMax, tnow);
+    xMin = xMax - config.timeRange * 24 * 60 * 60;
+  }
   graph.xMin = xMin;
   graph.xMax = xMax;
-  const lasttime = task.progress[task.progress.length - 1].time;
   // 历史记录
   const historyList = Array.from(task.progress);
   historyList.push({
@@ -161,9 +251,12 @@ function renderDataCard(
   const yRange = 1;
   const yMinMin = 0;
   graph.autoYRange(points);
-  graph.yMin = yMinMin;
-  if (graph.yMax < task.tot) {
-    graph.yMax = task.tot;
+  if (config.timeRange == 0) {
+    // 扩展 y 到 全流程
+    graph.yMin = yMinMin;
+    if (graph.yMax < task.tot) {
+      graph.yMax = task.tot;
+    }
   }
   if (graph.yMax - graph.yMin < yRange) {
     const avg = (graph.yMin + graph.yMax) / 2;
@@ -231,6 +324,7 @@ function renderDataCard(
   graph.renderTo(cardDiv);
 }
 
+// 处理无数据情况的函数
 function renderNoDataCard(cardDiv: HTMLDivElement, name: string) {
   const graph = new SVGGraph();
   const title = name;
@@ -241,5 +335,74 @@ function renderNoDataCard(cardDiv: HTMLDivElement, name: string) {
   graph.renderBackground(bgColor);
   graph.renderTitle(name, titleColor);
   graph.renderValue("NoData", numColor);
+  graph.renderTo(cardDiv);
+}
+
+// 处理预计时间数据
+function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
+  const graph = new SVGGraph();
+  graph.renderStart(cardDiv);
+  // 计算x轴时间范围
+  let xMin = workloadHistory[0].time;
+  let xMax = tnow;
+  if (config.timeRange > 0) {
+    xMin = xMax - config.timeRange * 24 * 60 * 60;
+  }
+  graph.xMin = xMin;
+  graph.xMax = xMax;
+  const points = workloadHistory.map((history) => ({
+    x: history.time,
+    y: history.left,
+  }));
+  // 计算y轴范围
+  const yRange = 1;
+  const yMinMin = 0;
+  graph.autoYRange(points);
+  // graph.yMin = yMinMin;
+  if (graph.yMax - graph.yMin < yRange) {
+    const avg = (graph.yMin + graph.yMax) / 2;
+    graph.yMin = avg - yRange / 2;
+    graph.yMax = avg + yRange / 2;
+  }
+  if (graph.yMin < yMinMin) {
+    graph.yMax += yMinMin - graph.yMin;
+    graph.yMin = yMinMin;
+  }
+
+  const xPad = (graph.xMax - graph.xMin) * 0.1;
+  graph.xMin -= xPad;
+  graph.xMax += xPad;
+
+  const yPad = (graph.yMax - graph.yMin) * 0.1;
+  graph.yMin -= yPad;
+  graph.yMax += yPad;
+
+  const xAxisYv = graph.yMin + yPad;
+  const yAxisXv = Math.min(graph.xMax - xPad, tnow);
+
+  const tzoffset = new Date().getTimezoneOffset() * 60;
+  const xInterval = graph.findXInterval(24 * 60 * 60, 30);
+  const yInterval = graph.findYInterval(1, 20);
+
+  const bgColor = rgbtostr(rgb(255, 255, 255));
+  const labelColor = rgbtostr(rgb(0, 0, 0));
+  const lineColor = rgbtostr(rgb(59, 188, 54));
+  let titleColor = rgbtostr(rgb(0, 0, 0));
+  let numColor = rgbtostr(rgb(0, 0, 0));
+
+  graph.renderBackground(bgColor);
+  graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
+  graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
+  graph.renderLine(points, lineColor, "solid", 2);
+  graph.renderPoints(points, lineColor, 2);
+
+  const title = "Workload";
+  graph.renderTitle(title, titleColor);
+  graph.renderValue(
+    workloadHistory[workloadHistory.length - 1].left.toFixed(2),
+    numColor,
+  );
+  // graph.renderUpdateTime(lasttime, titleColor);
+
   graph.renderTo(cardDiv);
 }
