@@ -23,6 +23,9 @@ def calculate_speed(
     # 近期记录
     MIN_TOT_TIME = timedelta(hours=6)
     MIN_TOT_DAYSPAN = 4  # workdays
+    HARD_MIN_TOT_DAYSPAN = (
+        1  # 当记录时长不足时补足一天，防止第一次完成的时候出现无限速度
+    )
     tot_progress = 0.0
     tot_time = timedelta(0)
     tot_dayspan = workdays(progress[-1].时间, now_time, worktime)  # workdays: float
@@ -71,6 +74,8 @@ def calculate_speed(
             速度=0.0,
             每日用时=timedelta(0),
         )
+    if tot_dayspan < HARD_MIN_TOT_DAYSPAN:
+        tot_dayspan = HARD_MIN_TOT_DAYSPAN
     速度 = tot_progress / (tot_time / timedelta(hours=1))
     每日用时 = tot_time / tot_dayspan
     log.debug(f"速度: {速度:.2f} 每日用时: {每日用时}")
