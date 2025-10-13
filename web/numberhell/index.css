@@ -66,6 +66,6 @@ h1 {
 
 .number_tot_card {
   height: 40vw;
+  flex-grow: 1;
   min-width: 75vw;
-  max-width: 80vw;
 }
