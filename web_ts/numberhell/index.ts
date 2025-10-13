@@ -288,16 +288,21 @@ function renderDataCard(
   const lineColor = rgbtostr(rgb(59, 188, 54));
   const warnLineColor = rgbtostr(rgb(215, 66, 66));
   let titleColor = rgbtostr(rgb(0, 0, 0));
-  let numColor = rgbtostr(rgb(0, 0, 0));
+  let numColor = rgbtostr(rgb(210, 210, 210));
   if (task.progress[task.progress.length - 1].done >= task.tot) {
     titleColor = rgbtostr(rgb(66, 149, 212));
-    numColor = rgbtostr(rgb(42, 100, 145));
+    numColor = rgbtostr(rgb(194, 229, 255));
   } else if (tnow >= task.endtime) {
     titleColor = rgbtostr(rgb(255, 0, 0));
-    numColor = rgbtostr(rgb(166, 49, 49));
+    numColor = rgbtostr(rgb(255, 180, 180));
   }
 
   graph.renderBackground(bgColor);
+  graph.renderValue(
+    task.progress[task.progress.length - 1].done,
+    numColor,
+    0.4,
+  );
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);
@@ -318,7 +323,6 @@ function renderDataCard(
 
   const title = name;
   graph.renderTitle(title, titleColor);
-  graph.renderValue(task.progress[task.progress.length - 1].done, numColor);
   // graph.renderUpdateTime(lasttime, titleColor);
 
   graph.renderTo(cardDiv);
@@ -334,7 +338,7 @@ function renderNoDataCard(cardDiv: HTMLDivElement, name: string) {
   graph.renderStart(cardDiv);
   graph.renderBackground(bgColor);
   graph.renderTitle(name, titleColor);
-  graph.renderValue("NoData", numColor);
+  graph.renderValue("NoData", numColor, 0.4);
   graph.renderTo(cardDiv);
 }
 
@@ -388,9 +392,14 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   const labelColor = rgbtostr(rgb(0, 0, 0));
   const lineColor = rgbtostr(rgb(59, 188, 54));
   let titleColor = rgbtostr(rgb(0, 0, 0));
-  let numColor = rgbtostr(rgb(0, 0, 0));
+  let numColor = rgbtostr(rgb(196, 196, 196));
 
   graph.renderBackground(bgColor);
+  graph.renderValue(
+    workloadHistory[workloadHistory.length - 1].left.toFixed(2),
+    numColor,
+    0.4,
+  );
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);
@@ -398,10 +407,6 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
 
   const title = "Workload";
   graph.renderTitle(title, titleColor);
-  graph.renderValue(
-    workloadHistory[workloadHistory.length - 1].left.toFixed(2),
-    numColor,
-  );
   // graph.renderUpdateTime(lasttime, titleColor);
 
   graph.renderTo(cardDiv);

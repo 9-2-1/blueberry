@@ -219,12 +219,12 @@ class SVGGraph {
     );
   }
 
-  renderValue(value: number | string, color: string) {
+  renderValue(value: number | string, color: string, size: number) {
     this.svg.push(
       `<text x="${this.xPixel / 2}" y="${this.yPixel / 2}" dominant-baseline="middle" text-anchor="middle"`,
     );
     this.svg.push(
-      ` fill="${color}" font-size="${this.yPixel * 0.4}" font-weight="bold" opacity="0.1">${value}`,
+      ` fill="${color}" font-size="${this.yPixel * size}" font-weight="bold">${value}`,
     );
     this.svg.push("</text>");
   }
