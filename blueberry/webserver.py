@@ -7,6 +7,7 @@ import os
 import aiohttp.web
 import logging
 
+from .config import CTZ
 from .parser import Data, load_data
 from .collect import collect_state
 from .statistic import statistic
@@ -77,7 +78,10 @@ def live_server(workbook: str, host: str, port: int) -> None:
             for record in data.长期进度:
                 if record.名称 in progresses:
                     progresses[record.名称].append(
-                        Points(time=record.时间.timestamp(), done=record.进度)
+                        Points(
+                            time=record.时间.replace(tzinfo=CTZ).timestamp(),
+                            done=record.进度,
+                        )
                     )
             reports: list[Report] = []
             state = collect_state(data, ctz_now())
@@ -89,8 +93,8 @@ def live_server(workbook: str, host: str, port: int) -> None:
                         name=task.名称,
                         tot=task.总数,
                         speed=tstat.速度,
-                        starttime=task.最晚开始.timestamp(),
-                        endtime=task.最晚结束.timestamp(),
+                        starttime=task.最晚开始.replace(tzinfo=CTZ).timestamp(),
+                        endtime=task.最晚结束.replace(tzinfo=CTZ).timestamp(),
                         progress=progresses[name],
                     )
                 )
