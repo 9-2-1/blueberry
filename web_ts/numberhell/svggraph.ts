@@ -21,6 +21,12 @@ class SVGGraph {
     while (i < points.length && points[i].x < this.xMin) {
       i++;
     }
+    if (i >= points.length) {
+      // 所有点都在xMin的左边
+      this.yMin = points[points.length - 1].y;
+      this.yMax = points[points.length - 1].y;
+      return;
+    }
     if (i != 0) {
       const vY =
         points[i - 1].y +
@@ -218,7 +224,7 @@ class SVGGraph {
       `<text x="${this.xPixel / 2}" y="${this.yPixel / 2}" dominant-baseline="middle" text-anchor="middle"`,
     );
     this.svg.push(
-      ` fill="${color}" font-size="${this.yPixel * 0.6}" font-weight="bold" opacity="0.1">${value}`,
+      ` fill="${color}" font-size="${this.yPixel * 0.4}" font-weight="bold" opacity="0.1">${value}`,
     );
     this.svg.push("</text>");
   }
