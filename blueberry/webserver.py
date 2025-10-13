@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import Optional, TypedDict
+from datetime import datetime, timedelta
+from typing import Optional, TypedDict, Literal
 import json
 import time
 import calendar
@@ -12,6 +12,7 @@ from .parser import Data, load_data
 from .collect import collect_state
 from .statistic import statistic
 from .fmtcolor import fmt
+from .models import DeleteModel
 from .ctz_now import ctz_now
 
 log = logging.getLogger(__name__)
@@ -62,6 +63,7 @@ def live_server(workbook: str, host: str, port: int) -> None:
 
     class Report(TypedDict):
         name: str
+        mode: Literal["short", "long"]
         tot: float
         speed: float
         starttime: float
@@ -72,6 +74,11 @@ def live_server(workbook: str, host: str, port: int) -> None:
         nonlocal numbercache_value, data
         assert data is not None
         if numbercache_value is None:
+            reports: list[Report] = []
+            state = collect_state(data, ctz_now())
+            stats = statistic(state, ctz_now())
+
+            # 长期任务
             progresses: dict[str, list[Points]] = {}
             for name in collect_state(data, ctz_now()).长期任务.keys():
                 progresses[name] = []
@@ -83,14 +90,12 @@ def live_server(workbook: str, host: str, port: int) -> None:
                             done=record.进度,
                         )
                     )
-            reports: list[Report] = []
-            state = collect_state(data, ctz_now())
-            stats = statistic(state, ctz_now())
             for name, task in state.长期任务.items():
                 tstat = stats.长期任务统计[name]
                 reports.append(
                     Report(
                         name=task.名称,
+                        mode="long",
                         tot=task.总数,
                         speed=tstat.速度,
                         starttime=task.最晚开始.replace(tzinfo=CTZ).timestamp(),
@@ -98,6 +103,45 @@ def live_server(workbook: str, host: str, port: int) -> None:
                         progress=progresses[name],
                     )
                 )
+
+            # 短期任务
+            progresses = {}
+            for name in collect_state(data, ctz_now()).短期任务.keys():
+                progresses[name] = []
+            for srecord in data.短期任务:
+                if isinstance(srecord, DeleteModel):
+                    continue
+                if srecord.名称 in progresses:
+                    if srecord.用时 is not None:
+                        用时 = srecord.用时 / timedelta(hours=1)
+                    else:
+                        用时 = 0.0
+                    progresses[srecord.名称].append(
+                        Points(
+                            time=srecord.时间.replace(tzinfo=CTZ).timestamp(),
+                            done=用时,
+                        )
+                    )
+                    if srecord.完成 is not None:
+                        progresses[srecord.名称].append(
+                            Points(
+                                time=srecord.完成.replace(tzinfo=CTZ).timestamp(),
+                                done=srecord.预计用时 / timedelta(hours=1),
+                            )
+                        )
+            for name, task2 in state.短期任务.items():
+                reports.append(
+                    Report(
+                        name=task2.名称,
+                        mode="short",
+                        tot=task2.预计用时 / timedelta(hours=1),
+                        speed=1,  # 短期任务的完成数量=完成用时小时数
+                        starttime=progresses[name][0]["time"],
+                        endtime=task2.最晚结束.replace(tzinfo=CTZ).timestamp(),
+                        progress=progresses[name],
+                    )
+                )
+
             assert data_timestamp is not None
             numbercache_value = json.dumps(
                 reports, ensure_ascii=False, separators=(",", ":")

@@ -25,6 +25,7 @@ function rgbtostr(rgb: { r: number; g: number; b: number }) {
 
 type NumberTask = {
   name: string;
+  mode: "long" | "short";
   tot: number;
   speed: number;
   starttime: number;
@@ -39,9 +40,12 @@ let numbers: NumberTask[] = [];
 let numberMap: Record<string, HTMLDivElement> = {};
 
 let workloadHistory: { time: number; left: number }[] = [];
+let workloadBoundary: { time: number; left: number; keyPoint: boolean }[] = [];
 
 function updateWorkload() {
   const tnow = new Date().getTime() / 1000;
+
+  // History
   let base = 0;
   let records: { time: number; fin: number }[] = [];
   for (const task of numbers) {
@@ -54,7 +58,6 @@ function updateWorkload() {
       records.push({ time: prog.time, fin: fin / task.speed });
       cur = prog.done;
     }
-
     base += (task.tot - cur) / task.speed;
   }
   records.sort((a, b) => b.time - a.time);
@@ -62,6 +65,46 @@ function updateWorkload() {
   for (const rec of records) {
     workloadHistory.unshift({ time: rec.time, left: base });
     base += rec.fin;
+  }
+
+  // Boundary
+  let record2s: { time: number; load: number }[] = [];
+  let starttime = tnow;
+  for (const task of numbers) {
+    if (task.starttime < starttime) {
+      starttime = task.starttime;
+    }
+    const load = task.tot / task.speed;
+    record2s.push({ time: task.endtime, load: load });
+  }
+  record2s.sort((a, b) => b.time - a.time);
+  base = 0;
+  workloadBoundary = [];
+  for (const rec of record2s) {
+    workloadBoundary.unshift({ time: rec.time, left: base, keyPoint: false });
+    base += rec.load;
+  }
+  workloadBoundary.unshift({ time: starttime, left: base, keyPoint: false });
+
+  // keyPoint
+  workloadBoundary[0].keyPoint = true;
+  for (let i = 0; i < workloadBoundary.length - 1; ) {
+    const boundary = workloadBoundary[i];
+    const point = workloadBoundary[i + 1];
+    let nexti = i + 1;
+    // steep 是个负数
+    // minsteep 越小代表着相同时间需要减小（完成）的数量更多
+    let minsteep = (point.left - boundary.left) / (point.time - boundary.time);
+    for (let j = i + 2; j < workloadBoundary.length; j++) {
+      const point = workloadBoundary[j];
+      const steep = (point.left - boundary.left) / (point.time - boundary.time);
+      if (steep < minsteep) {
+        minsteep = steep;
+        nexti = j;
+      }
+    }
+    i = nexti;
+    workloadBoundary[i].keyPoint = true;
   }
 }
 
@@ -153,6 +196,10 @@ function initNumbersDiv() {
       task.progress[task.progress.length - 1].done >= task.tot &&
       tnow >= task.endtime
     ) {
+      continue;
+    }
+    // 不追踪短期任务（但短期任务包含在工作时间总计中）
+    if (task.mode === "short") {
       continue;
     }
     const cardDiv = document.createElement("div");
@@ -347,9 +394,10 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   const graph = new SVGGraph();
   graph.renderStart(cardDiv);
   // 计算x轴时间范围
-  let xMin = workloadHistory[0].time;
-  let xMax = tnow;
+  let xMin = workloadBoundary[0].time;
+  let xMax = workloadBoundary[workloadBoundary.length - 1].time;
   if (config.timeRange > 0) {
+    xMax = Math.min(xMax, tnow);
     xMin = xMax - config.timeRange * 24 * 60 * 60;
   }
   graph.xMin = xMin;
@@ -358,11 +406,36 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
     x: history.time,
     y: history.left,
   }));
+  const points2 = [];
+  let lastY = 0;
+  for (const boundary of workloadBoundary) {
+    if (lastY > 0) {
+      points2.push({
+        x: boundary.time,
+        y: lastY,
+      });
+    }
+    points2.push({
+      x: boundary.time,
+      y: boundary.left,
+    });
+    lastY = boundary.left;
+  }
+  const points2k = workloadBoundary
+    .filter((boundary) => boundary.keyPoint)
+    .map((boundary) => ({
+      x: boundary.time,
+      y: boundary.left,
+    }));
   // 计算y轴范围
   const yRange = 1;
   const yMinMin = 0;
   graph.autoYRange(points);
-  // graph.yMin = yMinMin;
+  if (config.timeRange == 0) {
+    // 扩展 y 到 全流程
+    graph.yMin = yMinMin;
+    // yMax 此时应已经包含最大值
+  }
   if (graph.yMax - graph.yMin < yRange) {
     const avg = (graph.yMin + graph.yMax) / 2;
     graph.yMin = avg - yRange / 2;
@@ -391,6 +464,7 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   const bgColor = rgbtostr(rgb(255, 255, 255));
   const labelColor = rgbtostr(rgb(0, 0, 0));
   const lineColor = rgbtostr(rgb(59, 188, 54));
+  const boundaryColor = rgbtostr(rgb(215, 66, 66));
   let titleColor = rgbtostr(rgb(0, 0, 0));
   let numColor = rgbtostr(rgb(196, 196, 196));
 
@@ -404,6 +478,8 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);
   graph.renderPoints(points, lineColor, 2);
+  graph.renderLine(points2, boundaryColor, "solid", 1);
+  graph.renderLine(points2k, boundaryColor, "solid", 1);
 
   const title = "Workload";
   graph.renderTitle(title, titleColor);
