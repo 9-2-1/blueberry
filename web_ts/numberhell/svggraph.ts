@@ -62,6 +62,14 @@ class SVGGraph {
       }
       return;
     }
+    if (points[0].x >= this.xMin) {
+      // 所有点都在xMin的右边
+      if (reset) {
+        this.yMin = points[0].y;
+        this.yMax = points[0].y;
+      }
+      return;
+    }
     if (i != 0) {
       const vY =
         points[i - 1].y +
