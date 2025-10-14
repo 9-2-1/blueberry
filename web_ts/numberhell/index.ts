@@ -317,8 +317,8 @@ function renderDataCard(
   graph.autoYRangeLine(points, true);
   if (config.timeRange == 0) {
     // 显示完整的边界
-    graph.autoRange(boundary1, true, "xy");
-    graph.autoRange(boundary2, true, "xy");
+    graph.autoRange(boundary1, false, "xy");
+    graph.autoRange(boundary2, false, "xy");
   }
   graph.fixYRange();
 
@@ -441,8 +441,8 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   graph.autoYRangeLine(points, true);
   if (config.timeRange == 0) {
     // 显示完整的边界
-    graph.autoRange(boundary1, true, "xy");
-    graph.autoRange(boundary2, true, "xy");
+    graph.autoRange(boundary1, false, "xy");
+    graph.autoRange(boundary2, false, "xy");
   }
   graph.fixYRange();
 
@@ -466,6 +466,10 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
 
   graph.renderBackground(bgColor);
 
+  const title = "Workload";
+  graph.renderTitle(title, titleColor);
+  // graph.renderUpdateTime(lasttime, titleColor);
+
   let lastLeft = workloadHistory[workloadHistory.length - 1].left;
   let displayText = "";
   if (config.direction == "fin-all") {
@@ -481,10 +485,6 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   graph.renderPoints(points, lineColor, 2);
   graph.renderLine(boundary1, boundaryColor, "solid", 1);
   graph.renderLine(boundary2, boundaryColor, "dashed", 1);
-
-  const title = "Workload";
-  graph.renderTitle(title, titleColor);
-  // graph.renderUpdateTime(lasttime, titleColor);
 
   graph.renderTo(cardDiv);
 }
