@@ -39,6 +39,7 @@ let numbers: NumberTask[] = [];
 
 let numberMap: Record<string, HTMLDivElement> = {};
 
+let workloadTot = 0;
 let workloadHistory: { time: number; left: number }[] = [];
 let workloadBoundary: { time: number; left: number; keyPoint: boolean }[] = [];
 
@@ -66,6 +67,7 @@ function updateWorkload() {
     workloadHistory.unshift({ time: rec.time, left: base });
     base += rec.fin;
   }
+  workloadTot = base;
 
   // Boundary
   let record2s: { time: number; load: number }[] = [];
@@ -287,6 +289,18 @@ function renderDataCard(
     { x: task.endtime, y: task.tot },
     { x: tnow, y: task.tot },
   ];
+  if (config.direction == "left") {
+    // 反转图表，显示剩余的量。
+    points.forEach((point) => {
+      point.y = task.tot - point.y;
+    });
+    boundary1.forEach((point) => {
+      point.y = task.tot - point.y;
+    });
+    boundary2.forEach((point) => {
+      point.y = task.tot - point.y;
+    });
+  }
   if (!finished) {
     // 进行中，延长x轴范围
     points.push({
@@ -323,7 +337,7 @@ function renderDataCard(
   const labelColor = rgbtostr(rgb(0, 0, 0));
   const lineColor = rgbtostr(rgb(59, 188, 54));
   const warnLineColor = rgbtostr(rgb(215, 66, 66));
-  let titleColor = rgbtostr(rgb(0, 0, 0));
+  let titleColor = rgbtostr(rgb(127, 127, 127));
   let numColor = rgbtostr(rgb(210, 210, 210));
   if (task.progress[task.progress.length - 1].done >= task.tot) {
     titleColor = rgbtostr(rgb(66, 149, 212));
@@ -333,12 +347,21 @@ function renderDataCard(
     numColor = rgbtostr(rgb(255, 180, 180));
   }
 
+  const title = name;
+
   graph.renderBackground(bgColor);
-  graph.renderValue(
-    task.progress[task.progress.length - 1].done,
-    numColor,
-    0.4,
-  );
+  graph.renderTitle(title, titleColor);
+  // graph.renderUpdateTime(lasttime, titleColor);
+  let displayText = "";
+  if (config.direction == "left") {
+    // 反转图表，显示剩余的量。
+    displayText = (
+      task.tot - task.progress[task.progress.length - 1].done
+    ).toString();
+  } else {
+    displayText = task.progress[task.progress.length - 1].done.toString();
+  }
+  graph.renderValue(displayText, numColor, 0.4);
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);
@@ -346,10 +369,6 @@ function renderDataCard(
 
   graph.renderLine(boundary1, warnLineColor, "solid", 1);
   graph.renderLine(boundary2, warnLineColor, "dashed", 1);
-
-  const title = name;
-  graph.renderTitle(title, titleColor);
-  // graph.renderUpdateTime(lasttime, titleColor);
 
   graph.renderTo(cardDiv);
 }
@@ -398,6 +417,19 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
       y: boundary.left,
     }));
 
+  if (config.direction == "fin-all") {
+    // 反转图表，显示已用时长。
+    points.forEach((point) => {
+      point.y = workloadTot - point.y;
+    });
+    boundary1.forEach((point) => {
+      point.y = workloadTot - point.y;
+    });
+    boundary2.forEach((point) => {
+      point.y = workloadTot - point.y;
+    });
+  }
+
   // 计算x轴时间范围
   graph.autoRange(points, true, "x");
   if (config.timeRange > 0) {
@@ -433,11 +465,16 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   let numColor = rgbtostr(rgb(196, 196, 196));
 
   graph.renderBackground(bgColor);
-  graph.renderValue(
-    workloadHistory[workloadHistory.length - 1].left.toFixed(2),
-    numColor,
-    0.4,
-  );
+
+  let lastLeft = workloadHistory[workloadHistory.length - 1].left;
+  let displayText = "";
+  if (config.direction == "fin-all") {
+    // 反转图表，显示已用时长。
+    displayText = (workloadTot - lastLeft).toFixed(2);
+  } else {
+    displayText = lastLeft.toFixed(2);
+  }
+  graph.renderValue(displayText, numColor, 0.4);
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);

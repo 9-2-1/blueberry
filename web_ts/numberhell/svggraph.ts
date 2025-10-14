@@ -114,8 +114,8 @@ class SVGGraph {
   }
 
   zoomRange(xZoom: number, yZoom: number) {
-    const xChange = (this.xMax - this.xMin) * (xZoom - 1) / 2;
-    const yChange = (this.yMax - this.yMin) * (yZoom - 1) / 2;
+    const xChange = ((this.xMax - this.xMin) * (xZoom - 1)) / 2;
+    const yChange = ((this.yMax - this.yMin) * (yZoom - 1)) / 2;
     this.xMin -= xChange;
     this.xMax += xChange;
     this.yMin -= yChange;
