@@ -117,10 +117,16 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-let config = {
+let config: {
+  showFinished: boolean;
+  timeRange: number;
+  direction: "left" | "fin" | "fin-all";
+  display: "abs" | "ref" | "3day";
+} = {
   showFinished: false,
   timeRange: 0,
-  smoothLine: false,
+  direction: "left",
+  display: "abs",
 };
 
 function updateConfig() {
@@ -130,15 +136,19 @@ function updateConfig() {
   const timeRangeElement = document.getElementById(
     "cfg_time_range",
   )! as HTMLSelectElement;
-  const smoothLineElement = document.getElementById(
-    "cfg_smooth_line",
-  )! as HTMLInputElement;
+  const directionElement = document.getElementById(
+    "cfg_direction",
+  )! as HTMLSelectElement;
+  const displayElement = document.getElementById(
+    "cfg_display",
+  )! as HTMLSelectElement;
   const cfg = {
     showFinished: showFinishedElement.checked,
     timeRange: parseInt(timeRangeElement.value),
-    smoothLine: smoothLineElement.checked,
+    direction: directionElement.value,
+    display: displayElement.value,
   };
-  config = cfg;
+  config = cfg as typeof config;
 }
 
 function onConfigChange() {
@@ -156,7 +166,10 @@ window.addEventListener("load", async () => {
     .getElementById("cfg_time_range")!
     .addEventListener("change", onConfigChange);
   document
-    .getElementById("cfg_smooth_line")!
+    .getElementById("cfg_direction")!
+    .addEventListener("change", onConfigChange);
+  document
+    .getElementById("cfg_display")!
     .addEventListener("change", onConfigChange);
   while (1) {
     try {
@@ -253,78 +266,54 @@ function renderDataCard(
   const graph = new SVGGraph();
   graph.renderStart(cardDiv);
   // 计算x轴时间范围
-  let i = 0;
-  let xMin = tnow;
-  while (i < task.progress.length) {
-    if (task.progress[i].done > 0) {
-      xMin = task.progress[i].time;
-      break;
-    }
-    i++;
+  // 已完成?
+  let finished = false;
+  if (task.progress[task.progress.length - 1].done >= task.tot) {
+    finished = true;
   }
-  if (xMin > task.starttime) {
-    xMin = task.starttime;
-  }
-  let xMax = tnow;
-  i = task.progress.length - 1;
-  while (i >= 0) {
-    if (task.progress[i].done >= task.tot) {
-      xMax = task.progress[i].time;
-    } else {
-      break;
-    }
-    i--;
-  }
-  if (xMax < task.endtime) {
-    xMax = task.endtime;
-  }
-  if (config.timeRange > 0) {
-    xMax = Math.min(xMax, tnow);
-    xMin = xMax - config.timeRange * 24 * 60 * 60;
-  }
-  graph.xMin = xMin;
-  graph.xMax = xMax;
   // 历史记录
   const historyList = Array.from(task.progress);
-  historyList.push({
-    time: tnow,
-    done: task.progress[task.progress.length - 1].done,
-  });
   const points = historyList.map((history) => ({
     x: history.time,
     y: history.done,
   }));
+  const boundary1 = [
+    { x: task.starttime, y: 0 },
+    { x: task.endtime, y: 0 },
+    { x: task.endtime, y: task.tot },
+  ];
+  const boundary2 = [
+    { x: task.starttime, y: 0 },
+    { x: task.endtime, y: task.tot },
+    { x: tnow, y: task.tot },
+  ];
+  if (!finished) {
+    // 进行中，延长x轴范围
+    points.push({
+      x: tnow,
+      y: points[points.length - 1].y,
+    });
+  }
+  graph.autoRange(points, true, "x");
+  if (config.timeRange != 0) {
+    // 限定时间范围
+    graph.xMin = graph.xMax - config.timeRange * 24 * 60 * 60;
+  }
   // 计算y轴范围
-  const yRange = 1;
-  const yMinMin = 0;
-  graph.autoYRange(points);
+  graph.autoYRangeLine(points, true);
   if (config.timeRange == 0) {
-    // 扩展 y 到 全流程
-    graph.yMin = yMinMin;
-    if (graph.yMax < task.tot) {
-      graph.yMax = task.tot;
-    }
+    // 显示完整的边界
+    graph.autoRange(boundary1, true, "xy");
+    graph.autoRange(boundary2, true, "xy");
   }
-  if (graph.yMax - graph.yMin < yRange) {
-    const avg = (graph.yMin + graph.yMax) / 2;
-    graph.yMin = avg - yRange / 2;
-    graph.yMax = avg + yRange / 2;
-  }
-  if (graph.yMin < yMinMin) {
-    graph.yMax += yMinMin - graph.yMin;
-    graph.yMin = yMinMin;
-  }
+  graph.fixYRange();
 
-  const xPad = (graph.xMax - graph.xMin) * 0.1;
-  graph.xMin -= xPad;
-  graph.xMax += xPad;
+  const origYMin = graph.yMin;
+  const origXMax = graph.xMax;
+  graph.zoomRange(1.2, 1.2);
 
-  const yPad = (graph.yMax - graph.yMin) * 0.1;
-  graph.yMin -= yPad;
-  graph.yMax += yPad;
-
-  const xAxisYv = graph.yMin + yPad;
-  const yAxisXv = Math.min(graph.xMax - xPad, tnow);
+  const xAxisYv = origYMin;
+  const yAxisXv = Math.min(origXMax, tnow);
 
   const tzoffset = new Date().getTimezoneOffset() * 60;
   const xInterval = graph.findXInterval(24 * 60 * 60, 30);
@@ -355,18 +344,8 @@ function renderDataCard(
   graph.renderLine(points, lineColor, "solid", 2);
   graph.renderPoints(points, lineColor, 2);
 
-  let boundary1 = [
-    { x: task.starttime, y: 0 },
-    { x: task.endtime, y: 0 },
-    { x: task.endtime, y: task.tot },
-  ];
   graph.renderLine(boundary1, warnLineColor, "solid", 1);
-  let boundary2 = [
-    { x: task.starttime, y: 0 },
-    { x: task.endtime, y: task.tot },
-    { x: graph.xMax, y: task.tot },
-  ];
-  graph.renderLine(boundary2, warnLineColor, "solid", 1);
+  graph.renderLine(boundary2, warnLineColor, "dashed", 1);
 
   const title = name;
   graph.renderTitle(title, titleColor);
@@ -384,7 +363,7 @@ function renderNoDataCard(cardDiv: HTMLDivElement, name: string) {
   const numColor = rgbtostr(rgb(181, 55, 55));
   graph.renderStart(cardDiv);
   graph.renderBackground(bgColor);
-  graph.renderTitle(name, titleColor);
+  graph.renderTitle(title, titleColor);
   graph.renderValue("NoData", numColor, 0.4);
   graph.renderTo(cardDiv);
 }
@@ -393,69 +372,54 @@ function renderNoDataCard(cardDiv: HTMLDivElement, name: string) {
 function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   const graph = new SVGGraph();
   graph.renderStart(cardDiv);
-  // 计算x轴时间范围
-  let xMin = workloadBoundary[0].time;
-  let xMax = workloadBoundary[workloadBoundary.length - 1].time;
-  if (config.timeRange > 0) {
-    xMax = Math.min(xMax, tnow);
-    xMin = xMax - config.timeRange * 24 * 60 * 60;
-  }
-  graph.xMin = xMin;
-  graph.xMax = xMax;
   const points = workloadHistory.map((history) => ({
     x: history.time,
     y: history.left,
   }));
-  const points2 = [];
+  const boundary1 = [];
   let lastY = 0;
   for (const boundary of workloadBoundary) {
     if (lastY > 0) {
-      points2.push({
+      boundary1.push({
         x: boundary.time,
         y: lastY,
       });
     }
-    points2.push({
+    boundary1.push({
       x: boundary.time,
       y: boundary.left,
     });
     lastY = boundary.left;
   }
-  const points2k = workloadBoundary
+  const boundary2 = workloadBoundary
     .filter((boundary) => boundary.keyPoint)
     .map((boundary) => ({
       x: boundary.time,
       y: boundary.left,
     }));
+
+  // 计算x轴时间范围
+  graph.autoRange(points, true, "x");
+  if (config.timeRange > 0) {
+    graph.xMin = graph.xMax - config.timeRange * 24 * 60 * 60;
+  }
   // 计算y轴范围
   const yRange = 1;
   const yMinMin = 0;
-  graph.autoYRange(points);
+  graph.autoYRangeLine(points, true);
   if (config.timeRange == 0) {
-    // 扩展 y 到 全流程
-    graph.yMin = yMinMin;
-    // yMax 此时应已经包含最大值
+    // 显示完整的边界
+    graph.autoRange(boundary1, true, "xy");
+    graph.autoRange(boundary2, true, "xy");
   }
-  if (graph.yMax - graph.yMin < yRange) {
-    const avg = (graph.yMin + graph.yMax) / 2;
-    graph.yMin = avg - yRange / 2;
-    graph.yMax = avg + yRange / 2;
-  }
-  if (graph.yMin < yMinMin) {
-    graph.yMax += yMinMin - graph.yMin;
-    graph.yMin = yMinMin;
-  }
+  graph.fixYRange();
 
-  const xPad = (graph.xMax - graph.xMin) * 0.1;
-  graph.xMin -= xPad;
-  graph.xMax += xPad;
+  const origYMin = graph.yMin;
+  const origXMax = graph.xMax;
+  graph.zoomRange(1.2, 1.2);
 
-  const yPad = (graph.yMax - graph.yMin) * 0.1;
-  graph.yMin -= yPad;
-  graph.yMax += yPad;
-
-  const xAxisYv = graph.yMin + yPad;
-  const yAxisXv = Math.min(graph.xMax - xPad, tnow);
+  const xAxisYv = origYMin;
+  const yAxisXv = Math.min(origXMax, tnow);
 
   const tzoffset = new Date().getTimezoneOffset() * 60;
   const xInterval = graph.findXInterval(24 * 60 * 60, 30);
@@ -478,8 +442,8 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   graph.renderYAxis(yAxisXv, yInterval, 0, labelColor, null);
   graph.renderLine(points, lineColor, "solid", 2);
   graph.renderPoints(points, lineColor, 2);
-  graph.renderLine(points2, boundaryColor, "solid", 1);
-  graph.renderLine(points2k, boundaryColor, "solid", 1);
+  graph.renderLine(boundary1, boundaryColor, "solid", 1);
+  graph.renderLine(boundary2, boundaryColor, "dashed", 1);
 
   const title = "Workload";
   graph.renderTitle(title, titleColor);

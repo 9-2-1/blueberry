@@ -15,7 +15,40 @@ class SVGGraph {
     this.yMax = yMax;
   }
 
-  autoYRange(points: { x: number; y: number }[]) {
+  autoRange(
+    points: { x: number; y: number }[],
+    reset: boolean,
+    mode: "x" | "y" | "xy",
+  ) {
+    if (points.length == 0) {
+      return;
+    }
+    let i = 0;
+    if (reset) {
+      if (mode == "x" || mode == "xy") {
+        this.xMin = points[0].x;
+        this.xMax = points[0].x;
+      }
+      if (mode == "y" || mode == "xy") {
+        this.yMin = points[0].y;
+        this.yMax = points[0].y;
+      }
+      i++;
+    }
+    for (; i < points.length; i++) {
+      if (mode == "x" || mode == "xy") {
+        this.xMin = Math.min(this.xMin, points[i].x);
+        this.xMax = Math.max(this.xMax, points[i].x);
+      }
+      if (mode == "y" || mode == "xy") {
+        this.yMin = Math.min(this.yMin, points[i].y);
+        this.yMax = Math.max(this.yMax, points[i].y);
+      }
+    }
+  }
+
+  autoYRangeLine(points: { x: number; y: number }[], reset: boolean) {
+    // 点需要从左到右连成线。从左到右
     let i = 0;
     // left bound
     while (i < points.length && points[i].x < this.xMin) {
@@ -23,8 +56,10 @@ class SVGGraph {
     }
     if (i >= points.length) {
       // 所有点都在xMin的左边
-      this.yMin = points[points.length - 1].y;
-      this.yMax = points[points.length - 1].y;
+      if (reset) {
+        this.yMin = points[points.length - 1].y;
+        this.yMax = points[points.length - 1].y;
+      }
       return;
     }
     if (i != 0) {
@@ -32,11 +67,21 @@ class SVGGraph {
         points[i - 1].y +
         ((points[i].y - points[i - 1].y) * (this.xMin - points[i - 1].x)) /
           (points[i].x - points[i - 1].x);
-      this.yMin = vY;
-      this.yMax = vY;
+      if (reset) {
+        this.yMin = vY;
+        this.yMax = vY;
+      } else {
+        this.yMin = Math.min(this.yMin, vY);
+        this.yMax = Math.max(this.yMax, vY);
+      }
     } else {
-      this.yMin = points[0].y;
-      this.yMax = points[0].y;
+      if (reset) {
+        this.yMin = points[0].y;
+        this.yMax = points[0].y;
+      } else {
+        this.yMin = Math.min(this.yMin, points[0].y);
+        this.yMax = Math.max(this.yMax, points[0].y);
+      }
       i = 1;
     }
     while (i < points.length && points[i].x <= this.xMax) {
@@ -52,6 +97,29 @@ class SVGGraph {
       this.yMin = Math.min(this.yMin, vY);
       this.yMax = Math.max(this.yMax, vY);
     }
+  }
+
+  // 修复y轴范围，防止y轴范围太小
+  fixYRange() {
+    const yRange = this.yMax - this.yMin;
+    if (yRange < 1) {
+      const avg = (this.yMin + this.yMax) / 2;
+      this.yMin = avg - 1 / 2;
+      this.yMax = avg + 1 / 2;
+      if (this.yMin < 0) {
+        this.yMax += -this.yMin;
+        this.yMin = 0;
+      }
+    }
+  }
+
+  zoomRange(xZoom: number, yZoom: number) {
+    const xChange = (this.xMax - this.xMin) * (xZoom - 1) / 2;
+    const yChange = (this.yMax - this.yMin) * (yZoom - 1) / 2;
+    this.xMin -= xChange;
+    this.xMax += xChange;
+    this.yMin -= yChange;
+    this.yMax += yChange;
   }
 
   findXInterval(xUnit: number, xMinGap: number) {

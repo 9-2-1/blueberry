@@ -14,7 +14,7 @@
   </head>
   <body>
     <h1>Number Hell</h1>
-    <nav>
+    <div id="options">
       <input type="checkbox" id="cfg_show_finished" />
       <label for="cfg_show_finished">显示已完成任务</label>
       <label for="cfg_time_range">时间范围</label>
@@ -26,9 +26,19 @@
         <option value="3">3日</option>
         <option value="1">1日</option>
       </select>
-      <input type="checkbox" id="cfg_smooth_line" />
-      <label for="cfg_smooth_line">平滑曲线(未实现)</label>
-    </nav>
+      <label for="cfg_direction">方向</label>
+      <select id="cfg_direction">
+        <option value="fin">已完成</option>
+        <option value="left">未完成</option>
+        <option value="fin-all">已完成(包括总用时)</option>
+      </select>
+      <label for="cfg_display">显示</label>
+      <select id="cfg_display">
+        <option value="abs">数量</option>
+        <option value="ref">与参考线差距</option>
+        <option value="3day">与3天安全线差距</option>
+      </select>
+    </div>
     <div id="numbers">
       <div id="tot"></div>
       <div id="tasks"></div>
