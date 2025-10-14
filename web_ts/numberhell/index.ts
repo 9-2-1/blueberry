@@ -287,8 +287,34 @@ function renderDataCard(
   const boundary2 = [
     { x: task.starttime, y: 0 },
     { x: task.endtime, y: task.tot },
-    { x: tnow, y: task.tot },
   ];
+  const day3safemap = (point: { x: number; y: number }) => {
+    const left = task.endtime - point.x;
+    const day3 = 3 * 24 * 60 * 60;
+    if (left < day3) {
+      return {
+        x: task.endtime,
+        y: task.tot,
+      };
+    }
+    const k = day3 / left;
+    return {
+      x: point.x + day3,
+      y: point.y + (task.tot - point.y) * k,
+    };
+  };
+  const day3safe = points.map(day3safemap);
+  day3safe.push({
+    x: task.endtime,
+    y: task.tot,
+  });
+  if (tnow >= task.endtime) {
+    // 已超时，延长x轴范围
+    day3safe.push({
+      x: tnow,
+      y: task.tot,
+    });
+  }
   if (config.direction == "left") {
     // 反转图表，显示剩余的量。
     points.forEach((point) => {
@@ -298,6 +324,9 @@ function renderDataCard(
       point.y = task.tot - point.y;
     });
     boundary2.forEach((point) => {
+      point.y = task.tot - point.y;
+    });
+    day3safe.forEach((point) => {
       point.y = task.tot - point.y;
     });
   }
@@ -315,6 +344,7 @@ function renderDataCard(
   }
   // 计算y轴范围
   graph.autoYRangeLine(points, true);
+  graph.autoYRangeLine(day3safe, false);
   if (config.timeRange == 0) {
     // 显示完整的边界
     graph.autoRange(boundary1, false, "xy");
@@ -325,6 +355,13 @@ function renderDataCard(
   const origYMin = graph.yMin;
   const origXMax = graph.xMax;
   graph.zoomRange(1.2, 1.2);
+
+  // 延长 boundary1
+  boundary1.push({ x: graph.xMax, y: boundary2[boundary2.length - 1].y });
+
+  // 延长 day3safe
+  day3safe.unshift({ x: graph.xMin, y: day3safe[0].y });
+  day3safe.push({ x: graph.xMax, y: day3safe[day3safe.length - 1].y });
 
   const xAxisYv = origYMin;
   const yAxisXv = Math.min(origXMax, tnow);
@@ -337,6 +374,7 @@ function renderDataCard(
   const labelColor = rgbtostr(rgb(0, 0, 0));
   const lineColor = rgbtostr(rgb(59, 188, 54));
   const warnLineColor = rgbtostr(rgb(215, 66, 66));
+  const safeLineColor = rgbtostr(rgb(215, 183, 66));
   let titleColor = rgbtostr(rgb(127, 127, 127));
   let numColor = rgbtostr(rgb(210, 210, 210));
   if (task.progress[task.progress.length - 1].done >= task.tot) {
@@ -369,6 +407,7 @@ function renderDataCard(
 
   graph.renderLine(boundary1, warnLineColor, "solid", 1);
   graph.renderLine(boundary2, warnLineColor, "dashed", 1);
+  graph.renderLine(day3safe, safeLineColor, "dashed", 1);
 
   graph.renderTo(cardDiv);
 }
@@ -449,6 +488,9 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   const origYMin = graph.yMin;
   const origXMax = graph.xMax;
   graph.zoomRange(1.2, 1.2);
+
+  // 延长 boundary1
+  boundary1.push({ x: graph.xMax, y: boundary2[boundary2.length - 1].y });
 
   const xAxisYv = origYMin;
   const yAxisXv = Math.min(origXMax, tnow);
