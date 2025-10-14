@@ -1,3 +1,8 @@
+function toFixed0(num: number, digits: number) {
+  const str = num.toFixed(digits);
+  return str.replace(/\.?0*$/, "");
+}
+
 function rgb(r: number, g: number, b: number) {
   return { r: r / 255, g: g / 255, b: b / 255 };
 }
@@ -391,13 +396,12 @@ function renderDataCard(
   graph.renderTitle(title, titleColor);
   // graph.renderUpdateTime(lasttime, titleColor);
   let displayText = "";
+  const fin = task.progress[task.progress.length - 1];
   if (config.direction == "left") {
     // 反转图表，显示剩余的量。
-    displayText = (
-      task.tot - task.progress[task.progress.length - 1].done
-    ).toString();
+    displayText = toFixed0(task.tot - fin.done, 2);
   } else {
-    displayText = task.progress[task.progress.length - 1].done.toString();
+    displayText = toFixed0(fin.done, 2);
   }
   graph.renderValue(displayText, numColor, 0.4);
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
@@ -516,9 +520,9 @@ function renderWorkload(cardDiv: HTMLDivElement, tnow: number) {
   let displayText = "";
   if (config.direction == "fin-all") {
     // 反转图表，显示已用时长。
-    displayText = (workloadTot - lastLeft).toFixed(2);
+    displayText = toFixed0(workloadTot - lastLeft, 2);
   } else {
-    displayText = lastLeft.toFixed(2);
+    displayText = toFixed0(lastLeft, 2);
   }
   graph.renderValue(displayText, numColor, 0.4);
   graph.renderXAxis(xAxisYv, xInterval, tzoffset, labelColor, fdate);
