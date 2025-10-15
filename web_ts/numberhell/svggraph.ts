@@ -266,6 +266,9 @@ class SVGGraph {
     style: "solid" | "dashed",
     width: number,
   ) {
+    if (points.length < 2) {
+      return;
+    }
     let posToPixel = (pos: { x: number; y: number }) => ({
       x: (this.xPixel * (pos.x - this.xMin)) / (this.xMax - this.xMin),
       y: (this.yPixel * (this.yMax - pos.y)) / (this.yMax - this.yMin),
@@ -279,6 +282,9 @@ class SVGGraph {
       linePixel[linePixel.length - 2].x > this.xPixel
     ) {
       linePixel.pop();
+    }
+    if (linePixel.length < 2) {
+      return;
     }
     const linePath = linePixel.map((p) => `${p.x} ${p.y}`).join("L");
     this.svg.push(
