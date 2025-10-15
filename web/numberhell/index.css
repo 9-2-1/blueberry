@@ -71,3 +71,7 @@ h1 {
   min-width: 75vw;
   max-width: 100vw;
 }
+
+.hidden {
+  display: none;
+}

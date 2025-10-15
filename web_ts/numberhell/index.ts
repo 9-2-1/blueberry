@@ -144,14 +144,24 @@ function sleep(ms: number) {
 
 let config: {
   showFinished: boolean;
+  showWorkload: boolean;
   timeRange: number;
   direction: "left" | "fin" | "fin-all";
   display: "abs" | "ref" | "3day";
-} = { showFinished: false, timeRange: 0, direction: "left", display: "abs" };
+} = {
+  showFinished: false,
+  showWorkload: false,
+  timeRange: 0,
+  direction: "left",
+  display: "abs",
+};
 
 function updateConfig() {
   const showFinishedElement = document.getElementById(
     "cfg_show_finished",
+  )! as HTMLInputElement;
+  const showWorkloadElement = document.getElementById(
+    "cfg_show_workload",
   )! as HTMLInputElement;
   const timeRangeElement = document.getElementById(
     "cfg_time_range",
@@ -164,6 +174,7 @@ function updateConfig() {
   )! as HTMLSelectElement;
   const cfg = {
     showFinished: showFinishedElement.checked,
+    showWorkload: showWorkloadElement.checked,
     timeRange: parseInt(timeRangeElement.value),
     direction: directionElement.value,
     display: displayElement.value,
@@ -179,18 +190,16 @@ function onConfigChange() {
 window.addEventListener("load", async () => {
   updateConfig();
   // 监听配置变化
-  document
-    .getElementById("cfg_show_finished")!
-    .addEventListener("change", onConfigChange);
-  document
-    .getElementById("cfg_time_range")!
-    .addEventListener("change", onConfigChange);
-  document
-    .getElementById("cfg_direction")!
-    .addEventListener("change", onConfigChange);
-  document
-    .getElementById("cfg_display")!
-    .addEventListener("change", onConfigChange);
+  const cfgIds = [
+    "cfg_show_finished",
+    "cfg_show_workload",
+    "cfg_time_range",
+    "cfg_direction",
+    "cfg_display",
+  ];
+  for (const id of cfgIds) {
+    document.getElementById(id)!.addEventListener("change", onConfigChange);
+  }
   while (1) {
     try {
       await updateNumberAsync();
@@ -256,7 +265,12 @@ function updateNumberDiv() {
       renderDataCard(cardDiv, task.name, task, tnow);
     }
   }
-  renderWorkload(numberMap["<tot>"], tnow);
+  if (config.showWorkload) {
+    numberMap["<tot>"].classList.remove("hidden");
+    renderWorkload(numberMap["<tot>"], tnow);
+  } else {
+    numberMap["<tot>"].classList.add("hidden");
+  }
 }
 
 // 同一主题色系列颜色
@@ -598,7 +612,7 @@ function renderCard(cardDiv: HTMLDivElement, data: CardDef) {
   const yAxisXv = Math.min(origXMax, data.tnow);
 
   const tzoffset = new Date().getTimezoneOffset() * 60;
-  const xInterval = graph.findXInterval(24 * 60 * 60, 30);
+  const xInterval = graph.findXInterval(24 * 60 * 60, 40);
   const yInterval = graph.findYInterval(1, 20);
 
   const bgColor = rgbtostr(rgb(255, 255, 255));
@@ -630,6 +644,5 @@ function renderCard(cardDiv: HTMLDivElement, data: CardDef) {
   graph.renderLine(refLine, refLineColor, "dashed", 1);
   graph.renderPoints(refLine, refLineColor, 4);
 
-  console.log(graph);
   graph.renderTo(cardDiv);
 }
