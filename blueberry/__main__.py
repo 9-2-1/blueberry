@@ -152,12 +152,6 @@ def main() -> None:
         action="store_true",
         help="只显示进度变化",
     )
-    parser.add_argument(
-        "-D",
-        "--olddiff",
-        action="store_true",
-        help="使用 旧→新 格式，不用 新(±变化) 格式",
-    )
     parser.add_argument("-o", "--output", action="store", help="输出文件路径")
     parser.add_argument("-v", "--verbose", action="store_true", help="输出调试信息")
 
