@@ -221,16 +221,14 @@ function initNumbersDiv() {
   const tnow = new Date().getTime() / 1000;
   numberMap = {};
 
-  const totDiv = document.getElementById("tot")!;
-  totDiv.innerHTML = "";
+  const numberDiv = document.getElementById("numbers")!;
+  numberDiv.innerHTML = "";
+
   const cardDiv = document.createElement("div");
   cardDiv.classList.add("number_card");
-  cardDiv.classList.add("number_tot_card");
-  totDiv.appendChild(cardDiv);
+  numberDiv.appendChild(cardDiv);
   numberMap["<tot>"] = cardDiv;
 
-  const numberDiv = document.getElementById("tasks")!;
-  numberDiv.innerHTML = "";
   for (const task of numbers) {
     if (
       !config.showFinished &&
@@ -515,7 +513,7 @@ function renderCard(cardDiv: HTMLDivElement, data: CardDef) {
     const y = xsearch(ref, data.tnow);
     if (fin.y < y) {
       themeColor = rgb(255, 180, 180);
-      displayText = "*" + toFixed0(y - fin.y, 2);
+      displayText = "-" + toFixed0(y - fin.y, 2);
       refLine = [
         { x: data.tnow, y: y },
         { x: data.tnow, y: fin.y },
@@ -523,7 +521,7 @@ function renderCard(cardDiv: HTMLDivElement, data: CardDef) {
     } else {
       if (fin.y >= data.total) {
         themeColor = rgb(140, 209, 255);
-        displayText = "✓∞";
+        displayText = "+∞";
       } else {
         const x = ysearch(ref, fin.y);
         if (x - data.tnow < 1 * 24 * 60 * 60) {
@@ -533,7 +531,7 @@ function renderCard(cardDiv: HTMLDivElement, data: CardDef) {
         } else {
           themeColor = rgb(140, 209, 255);
         }
-        displayText = "⧖" + toTimeString(x - data.tnow);
+        displayText = "+" + toTimeString(x - data.tnow);
         refLine = [
           { x: data.tnow, y: fin.y },
           { x: x, y: fin.y },
