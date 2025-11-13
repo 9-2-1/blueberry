@@ -85,22 +85,8 @@ def report_long_tasks(N: ReportData) -> str:
 
 def report_short_tasks(N: ReportData) -> str:
     table_lines: list[Union[Sequence[Optional[str]], str]] = []
-    table_headers = [
-        "",
-        "短期任务",
-        "点数",
-        "用时",
-        "预计时间",
-        "剩余时间",
-    ]
-    table_colalign = [
-        "left",
-        "left",
-        "decimal",
-        "right",
-        "right",
-        "right",
-    ]
+    table_headers = ["", "短期任务", "点数", "用时", "预计时间", "剩余时间"]
+    table_colalign = ["left", "left", "decimal", "right", "right", "right"]
     总用时 = timedelta(0)
     总预计时间 = timedelta(0)
     for task in prefer(N.state.短期任务.values(), N.state.选择排序偏好):

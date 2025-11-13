@@ -3,11 +3,7 @@ from datetime import datetime, timedelta
 import math
 import logging
 
-from .models import (
-    ProgressModel,
-    LongTaskModel,
-    ShortTaskModel,
-)
+from .models import ProgressModel, LongTaskModel, ShortTaskModel
 from .collect import State
 from .speed import TaskSpeed, calculate_speed
 from .picker import isdisabled
@@ -85,10 +81,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         progress = now_state.长期进度.get(task1.名称, None)
         进度 = 0.0
         用时 = timedelta(0)
-        速度 = TaskSpeed(
-            速度=0.0,
-            每日用时=timedelta(0),
-        )
+        速度 = TaskSpeed(速度=0.0, 每日用时=timedelta(0))
         if progress is not None:
             tot_progress.extend(progress)
             current = progress[-1]
@@ -153,22 +146,12 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
                 )
         if task2.完成 is not None and now_time >= task2.完成:
             tot_progress.append(
-                ProgressModel(
-                    时间=task2.完成,
-                    名称=task2.名称,
-                    进度=0.0,
-                    用时=用时,
-                )
+                ProgressModel(时间=task2.完成, 名称=task2.名称, 进度=0.0, 用时=用时)
             )
             pts += ptsu
         elif task2.预计用时 != timedelta(0):
             tot_progress.append(
-                ProgressModel(
-                    时间=task2.时间,
-                    名称=task2.名称,
-                    进度=0.0,
-                    用时=用时,
-                )
+                ProgressModel(时间=task2.时间, 名称=task2.名称, 进度=0.0, 用时=用时)
             )
             pts += ptsu * (用时 / task2.预计用时)
         点数 = math.floor(pts + 0.5)

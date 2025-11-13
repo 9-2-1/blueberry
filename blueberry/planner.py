@@ -37,10 +37,7 @@ class TaskItem:
 
 
 def planner(
-    N: PlanData,
-    P: PlanData,
-    end_time: datetime,
-    worktime: list[WorktimeModel],
+    N: PlanData, P: PlanData, end_time: datetime, worktime: list[WorktimeModel]
 ) -> Plan:
     # 推荐时长
     建议用时: dict[str, timedelta] = {}

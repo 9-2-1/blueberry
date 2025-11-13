@@ -49,12 +49,7 @@ def get_goldie_points_loads_history(
             tomorrow_time = current_time + timedelta(days=1)
             plan = planner(current_data, current_data, tomorrow_time, state.工作时段)
             history.append(
-                (
-                    current_time,
-                    stats.Goldie点数,
-                    plan.总建议用时,
-                    stats.总每日平均用时,
-                )
+                (current_time, stats.Goldie点数, plan.总建议用时, stats.总每日平均用时)
             )
         except Exception as e:
             print(f"{current_time}: {e}")

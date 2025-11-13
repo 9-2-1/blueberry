@@ -155,10 +155,7 @@ def report_tasks_plan(
             ),
             None,
             colorit(推荐每日用时, greyzero=True),
-            colorit(
-                ntask2.最晚结束 - N.time,
-                grey=finished,
-            ),
+            colorit(ntask2.最晚结束 - N.time, grey=finished),
         ]
         总用时 += nstat2.用时 - pstat2.用时
         table_lines.append(table_line)

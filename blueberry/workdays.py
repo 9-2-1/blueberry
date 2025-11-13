@@ -54,18 +54,9 @@ def workdays(begin: datetime, end: datetime, worktime: list[WorktimeModel]) -> f
 
 def test_workdays() -> None:
     worktime = [
-        WorktimeModel(
-            开始=datetime_time(4, 0),
-            结束=datetime_time(8, 0),
-        ),
-        WorktimeModel(
-            开始=datetime_time(12, 0),
-            结束=datetime_time(16, 0),
-        ),
-        WorktimeModel(
-            开始=datetime_time(22, 0),
-            结束=datetime_time(0, 0),
-        ),
+        WorktimeModel(开始=datetime_time(4, 0), 结束=datetime_time(8, 0)),
+        WorktimeModel(开始=datetime_time(12, 0), 结束=datetime_time(16, 0)),
+        WorktimeModel(开始=datetime_time(22, 0), 结束=datetime_time(0, 0)),
     ]
     prev_time = datetime.now()
     now_time = prev_time

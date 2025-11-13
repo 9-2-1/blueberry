@@ -138,20 +138,11 @@ def main() -> None:
         help="当前时间(默认为现在)",
     )
     parser.add_argument(
-        "-e",
-        "--end",
-        action="store",
-        type=dateparser.parse,
-        help="结束时间(可选)",
+        "-e", "--end", action="store", type=dateparser.parse, help="结束时间(可选)"
     )
     parser.add_argument("-d", "--daily", action="store_true", help="显示每日建议数量")
     # 详细格式设定
-    parser.add_argument(
-        "-c",
-        "--change",
-        action="store_true",
-        help="只显示进度变化",
-    )
+    parser.add_argument("-c", "--change", action="store_true", help="只显示进度变化")
     parser.add_argument("-o", "--output", action="store", help="输出文件路径")
     parser.add_argument("-v", "--verbose", action="store_true", help="输出调试信息")
 

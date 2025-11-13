@@ -5,12 +5,7 @@ from datetime import datetime, timedelta
 FmtT = TypeVar("FmtT", int, float, datetime, timedelta, str)
 
 
-def fmt(
-    x: FmtT,
-    *,
-    pos: bool = False,
-    p2: bool = False,
-) -> str:
+def fmt(x: FmtT, *, pos: bool = False, p2: bool = False) -> str:
     if isinstance(x, int):
         if pos and x != 0:
             return f"{x:+d}"

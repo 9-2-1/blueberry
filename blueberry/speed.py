@@ -70,16 +70,10 @@ def calculate_speed(
             break
     log.debug("=" * 80)
     if tot_time == timedelta(0):
-        return TaskSpeed(
-            速度=0.0,
-            每日用时=timedelta(0),
-        )
+        return TaskSpeed(速度=0.0, 每日用时=timedelta(0))
     if tot_dayspan < HARD_MIN_TOT_DAYSPAN:
         tot_dayspan = HARD_MIN_TOT_DAYSPAN
     速度 = tot_progress / (tot_time / timedelta(hours=1))
     每日用时 = tot_time / tot_dayspan
     log.debug(f"速度: {速度:.2f} 每日用时: {每日用时}")
-    return TaskSpeed(
-        速度=速度,
-        每日用时=每日用时,
-    )
+    return TaskSpeed(速度=速度, 每日用时=每日用时)

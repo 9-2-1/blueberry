@@ -118,8 +118,7 @@ def live_server(workbook: str, host: str, port: int) -> None:
                         用时 = 0.0
                     progresses[srecord.名称].append(
                         Points(
-                            time=srecord.时间.replace(tzinfo=CTZ).timestamp(),
-                            done=用时,
+                            time=srecord.时间.replace(tzinfo=CTZ).timestamp(), done=用时
                         )
                     )
                     if srecord.完成 is not None:

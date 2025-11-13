@@ -21,22 +21,8 @@ log = logging.getLogger(__name__)
 def report_tasks_diff(
     N: ReportData, P: ReportData, hide_decay: bool = False, *, total_str: str = "总数"
 ) -> str:
-    table_headers = [
-        "",
-        "名称",
-        "用时",
-        "完成",
-        "点数",
-        "变化",
-    ]
-    table_colalign = [
-        "left",
-        "left",
-        "right",
-        "decimal",
-        "decimal",
-        "decimal",
-    ]
+    table_headers = ["", "名称", "用时", "完成", "点数", "变化"]
+    table_colalign = ["left", "left", "right", "decimal", "decimal", "decimal"]
     总用时 = timedelta(0)
     其它点数 = 0
     其它点数变化 = 0
@@ -98,8 +84,7 @@ def report_tasks_diff(
         finished = ntask2.完成 is not None and N.time >= ntask2.完成
         table_line = [
             colorit(
-                SHORT_RUNNING if not finished else SHORT_WAITING,
-                colorpts=colorpts,
+                SHORT_RUNNING if not finished else SHORT_WAITING, colorpts=colorpts
             ),
             colorit(
                 ntask2.标题,
