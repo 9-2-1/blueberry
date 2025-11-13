@@ -56,13 +56,13 @@ def planner(
         if pstat1.进度 >= task1.总数:
             continue
         预计需要时间 = timedelta(minutes=20)
-        if pstat1.进度 > 0:
+        if tstat1.进度 > 0:
             预计需要时间 = timedelta(hours=1) * (task1.总数 - pstat1.进度) / tstat1.速度
         collection.append(
             TaskItem(
                 name=task1.名称,
                 worktime=预计需要时间,
-                endtime=task1.最晚结束 if pstat1.进度 > 0 else task1.最晚开始,
+                endtime=task1.最晚结束 if tstat1.进度 > 0 else task1.最晚开始,
                 keep=task1.保持安排 == "+",
                 skipped=False,
             )
