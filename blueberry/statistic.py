@@ -94,7 +94,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
             预计可用时间 = timedelta(0)
         预计需要时间 = 预计可用时间
         if 速度.速度 != 0.0:
-            预计需要时间 = timedelta(hours=1) * (task1.总数 - current.进度) / 速度.速度
+            预计需要时间 = timedelta(hours=1) * (task1.总数 - 进度) / 速度.速度
         差距 = 预计可用时间 - 预计需要时间
         点数 = 0
         if 进度 > 0:
@@ -119,7 +119,7 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
     for task2 in now_state.短期任务.values():
         if isdisabled(task2.名称, now_state.选择排序偏好):
             continue
-        预计可用时间 = workdays(now_time, task1.最晚结束, worktime) * 速度.每日用时
+        预计可用时间 = workdays(now_time, task2.最晚结束, worktime) * 推荐用时
         if 预计可用时间 < timedelta(0):
             预计可用时间 = timedelta(0)
         # TODO 其他任务点数 += todo.点数

@@ -160,13 +160,13 @@ def main() -> None:
         return
 
     if args.watch:
+        ESC = "\033"
+        HIDECURSOR = ESC + "[?25l"
+        SHOWCURSOR = ESC + "[?25h"
+        HOME = ESC + "[H"
+        CLTEOL = ESC + "[K"
+        CLTEOS = ESC + "[J"
         try:
-            ESC = "\033"
-            HIDECURSOR = ESC + "[?25l"
-            SHOWCURSOR = ESC + "[?25h"
-            HOME = ESC + "[H"
-            CLTEOL = ESC + "[K"
-            CLTEOS = ESC + "[J"
             print(HIDECURSOR, end="")
             fstat = os.stat(args.workbook)
             last_mtime = 0.0

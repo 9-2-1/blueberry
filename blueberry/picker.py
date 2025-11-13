@@ -13,7 +13,7 @@ def isdisabled(task_name: str, preference: list[PickerModel]) -> bool:
     return False
 
 
-def priority(item: T, preference: list[PickerModel]) -> int:
+def priority(item: AppendOnly, preference: list[PickerModel]) -> int:
     for i, picker in enumerate(preference):
         if item.名称 == picker.名称:
             return i
