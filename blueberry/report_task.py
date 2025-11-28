@@ -6,13 +6,8 @@ from tabulate import tabulate, SEPARATING_LINE
 
 from .picker import prefer
 from .fmtcolor import fmt, colorit
-from .report_base import (
-    ReportData,
-    LONG_RUNNING,
-    LONG_WAITING,
-    SHORT_RUNNING,
-    SHORT_WAITING,
-)
+from .report_base import ReportData, LONG_RUNNING, LONG_WAITING
+from .statistic import EmptyLongTaskStats
 
 log = logging.getLogger(__name__)
 
@@ -75,48 +70,6 @@ def report_long_tasks(N: ReportData) -> str:
         None,
         colorit(总预计时间, greyzero=True),
         colorit(N.stats.总每日平均用时, greyzero=True),
-    ]
-    table_lines.append(total_line)
-    report = tabulate(
-        table_lines, headers=table_headers, colalign=table_colalign, tablefmt="simple"
-    )
-    return report
-
-
-def report_short_tasks(N: ReportData) -> str:
-    table_lines: list[Union[Sequence[Optional[str]], str]] = []
-    table_headers = ["", "短期任务", "点数", "用时", "预计时间", "剩余时间"]
-    table_colalign = ["left", "left", "decimal", "right", "right", "right"]
-    总用时 = timedelta(0)
-    总预计时间 = timedelta(0)
-    for task in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
-        # 跳过完成0分项
-        if task.完成 is not None and N.time >= task.完成 and N.time >= task.最晚结束:
-            continue
-        tstat = N.stats.短期任务统计[task.名称]
-        colorpts = tstat.点数 - (0 if task.完成 else 1)
-        table_line = [
-            colorit(
-                SHORT_RUNNING if tstat.用时 > timedelta(0) else SHORT_WAITING,
-                colorpts=colorpts,
-            ),
-            colorit(task.标题, red=N.time >= task.最晚结束),
-            colorit(fmt(colorpts, pos=True), colorpts=colorpts),
-            colorit(tstat.用时, greyzero=True),
-            colorit(tstat.预计需要时间, greyzero=True),
-            fmt(task.最晚结束 - N.time),
-        ]
-        总用时 += tstat.用时
-        总预计时间 += tstat.预计需要时间
-        table_lines.append(table_line)
-    table_lines.append(SEPARATING_LINE)
-    total_line = [
-        None,
-        "总数",
-        colorit(fmt(N.stats.短期任务点数, pos=True), colorpts=N.stats.短期任务点数),
-        colorit(总用时, greyzero=True),
-        colorit(总预计时间, greyzero=True),
-        None,
     ]
     table_lines.append(total_line)
     report = tabulate(

@@ -42,18 +42,6 @@ class ProgressModel(BaseModel):
     用时: timedelta = timedelta(0)
 
 
-class ShortTaskModel(AppendOnly):
-    名称: str
-    时间: datetime
-    # ---
-    标题: str
-    最晚结束: datetime
-    预计用时: timedelta
-    最早开始: datetime
-    完成: Optional[datetime] = None
-    用时: Optional[timedelta] = None
-
-
 class WorktimeModel(BaseModel):
     开始: datetime_time
     结束: datetime_time

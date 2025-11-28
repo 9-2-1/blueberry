@@ -13,7 +13,7 @@ from .statistic import statistic
 from .planner import planner, PlanData
 from .webserver import live_server
 from .report_base import report_head, report_plan_head, report_worktime, ReportData
-from .report_task import report_long_tasks, report_short_tasks
+from .report_task import report_long_tasks
 from .report_diff import report_tasks_diff
 from .report_plan import report_tasks_plan
 from .ctz_now import ctz_now
@@ -78,7 +78,6 @@ def get_report_and_write(data: Data, args: argparse.Namespace) -> str:
             )
     else:
         report += report_long_tasks(now_data) + "\n\n"
-        report += report_short_tasks(now_data)
 
     if args.output is not None:
         with open(f"{args.output}.json", "w", encoding="utf-8") as f:

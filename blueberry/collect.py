@@ -8,7 +8,6 @@ from .models import (
     DeleteModel,
     LongTaskModel,
     ProgressModel,
-    ShortTaskModel,
     WorktimeModel,
     PickerModel,
 )
@@ -19,7 +18,6 @@ from .parser import Data
 class State(BaseModel):
     长期任务: dict[str, LongTaskModel]
     长期进度: dict[str, list[ProgressModel]]
-    短期任务: dict[str, ShortTaskModel]
     工作时段: list[WorktimeModel]
     选择排序偏好: list[PickerModel]
 
@@ -58,7 +56,6 @@ def collect_state(data: Data, now_time: datetime) -> State:
     return State(
         长期任务=collect_lines(data.长期任务, now_time),
         长期进度=collect_progress(data.长期进度, now_time),
-        短期任务=collect_lines(data.短期任务, now_time),
         工作时段=data.工作时段,
         选择排序偏好=data.选择排序偏好,
     )

@@ -21,8 +21,6 @@ Tabulate.PRESERVE_WHITESPACE = True
 
 LONG_RUNNING = "●"
 LONG_WAITING = "◯"
-SHORT_RUNNING = "■"
-SHORT_WAITING = "□"
 
 
 @dataclass

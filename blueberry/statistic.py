@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import math
 import logging
 
-from .models import ProgressModel, LongTaskModel, ShortTaskModel
+from .models import ProgressModel, LongTaskModel
 from .collect import State
 from .speed import TaskSpeed, calculate_speed
 from .picker import isdisabled
@@ -30,12 +30,6 @@ class LongTaskStats(TaskStats):
     最晚开始: datetime
 
 
-@dataclass
-class ShortTaskStats(TaskStats):
-    # blink!
-    pass
-
-
 def EmptyLongTaskStats(task: LongTaskModel) -> LongTaskStats:
     return LongTaskStats(
         预计需要时间=timedelta(0),
@@ -50,23 +44,11 @@ def EmptyLongTaskStats(task: LongTaskModel) -> LongTaskStats:
     )
 
 
-def EmptyShortTaskStats(task: ShortTaskModel) -> ShortTaskStats:
-    return ShortTaskStats(
-        预计需要时间=timedelta(0),
-        预计可用时间=timedelta(0),
-        最晚结束=task.最晚结束,
-        点数=0,
-        用时=timedelta(0),
-    )
-
-
 @dataclass
 class StateStats:
     Goldie点数: int
     长期任务点数: int
     长期任务统计: dict[str, LongTaskStats]
-    短期任务点数: int
-    短期任务统计: dict[str, ShortTaskStats]
     总每日平均用时: timedelta
 
 
@@ -114,56 +96,6 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         )
         长期任务点数 += 点数
 
-    短期任务点数 = 0
-    短期任务统计: dict[str, ShortTaskStats] = {}
-    for task2 in now_state.短期任务.values():
-        if isdisabled(task2.名称, now_state.选择排序偏好):
-            continue
-        预计可用时间 = workdays(now_time, task2.最晚结束, worktime) * 推荐用时
-        if 预计可用时间 < timedelta(0):
-            预计可用时间 = timedelta(0)
-        # TODO 其他任务点数 += todo.点数
-        用时 = timedelta(0)
-        if task2.用时 is not None:
-            用时 = task2.用时
-        elif task2.完成 is not None and now_time >= task2.完成:
-            用时 = task2.预计用时
-        点数 = 0
-        ptsu = task2.预计用时 / 推荐用时 * 100
-        pts = 0.0
-        if now_time > task2.最晚结束:
-            pts = -ptsu
-        elif now_time <= task2.最早开始:
-            pts = 0.0
-        else:
-            if workdays(task2.最早开始, task2.最晚结束, worktime) == 0.0:
-                pts = -ptsu
-            else:
-                pts = (
-                    -ptsu
-                    * workdays(task2.最早开始, now_time, worktime)
-                    / workdays(task2.最早开始, task2.最晚结束, worktime)
-                )
-        if task2.完成 is not None and now_time >= task2.完成:
-            tot_progress.append(
-                ProgressModel(时间=task2.完成, 名称=task2.名称, 进度=0.0, 用时=用时)
-            )
-            pts += ptsu
-        elif task2.预计用时 != timedelta(0):
-            tot_progress.append(
-                ProgressModel(时间=task2.时间, 名称=task2.名称, 进度=0.0, 用时=用时)
-            )
-            pts += ptsu * (用时 / task2.预计用时)
-        点数 = math.floor(pts + 0.5)
-        短期任务统计[task2.名称] = ShortTaskStats(
-            预计需要时间=task2.预计用时 - 用时,
-            预计可用时间=预计可用时间,
-            最晚结束=task2.最晚结束,
-            点数=点数,
-            用时=用时,
-        )
-        短期任务点数 += 点数
-
     总每日平均用时 = timedelta(0)
     if tot_progress:
         tot_progress.sort(key=lambda x: x.时间)
@@ -174,12 +106,10 @@ def statistic(now_state: State, now_time: datetime) -> StateStats:
         )
         总每日平均用时 = tot_speed.每日用时
 
-    Goldie点数 = 长期任务点数 + 短期任务点数
+    Goldie点数 = 长期任务点数
     return StateStats(
         Goldie点数=Goldie点数,
         长期任务点数=长期任务点数,
         长期任务统计=长期任务统计,
-        短期任务点数=短期任务点数,
-        短期任务统计=短期任务统计,
         总每日平均用时=总每日平均用时,
     )

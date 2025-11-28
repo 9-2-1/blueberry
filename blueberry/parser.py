@@ -11,7 +11,6 @@ from .models import (
     DeleteModel,
     LongTaskModel,
     ProgressModel,
-    ShortTaskModel,
     WorktimeModel,
     PickerModel,
 )
@@ -25,7 +24,6 @@ T = TypeVar("T")
 class Data(BaseModel):
     长期任务: list[Union[LongTaskModel, DeleteModel]]
     长期进度: list[ProgressModel]
-    短期任务: list[Union[ShortTaskModel, DeleteModel]]
     工作时段: list[WorktimeModel] = [
         WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))
     ]
@@ -74,7 +72,6 @@ def load_data(workbook: str) -> Data:
     wb = load_workbook(workbook)
     长期任务 = parse_append_only_table(wb["长期任务"], LongTaskModel)
     长期进度 = parse_model_table(wb["长期进度"], ProgressModel)
-    短期任务 = parse_append_only_table(wb["短期任务"], ShortTaskModel)
     工作时段 = [WorktimeModel(开始=datetime_time(hour=0), 结束=datetime_time(hour=0))]
     选择排序偏好: list[PickerModel] = []
     if "工作时段" in wb.sheetnames:
@@ -84,7 +81,6 @@ def load_data(workbook: str) -> Data:
     return Data(
         长期任务=长期任务,
         长期进度=长期进度,
-        短期任务=短期任务,
         工作时段=工作时段,
         选择排序偏好=选择排序偏好,
     )

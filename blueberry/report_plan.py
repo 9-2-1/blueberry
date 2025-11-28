@@ -6,16 +6,10 @@ import logging
 from tabulate import tabulate, SEPARATING_LINE
 
 from .picker import prefer
-from .statistic import EmptyLongTaskStats, EmptyShortTaskStats
+from .statistic import EmptyLongTaskStats
 from .planner import Plan
 from .fmtcolor import fmt, colorit
-from .report_base import (
-    ReportData,
-    LONG_RUNNING,
-    LONG_WAITING,
-    SHORT_RUNNING,
-    SHORT_WAITING,
-)
+from .report_base import ReportData, LONG_RUNNING, LONG_WAITING
 
 log = logging.getLogger(__name__)
 
@@ -109,55 +103,6 @@ def report_tasks_plan(
             ),
         ]
         总用时 += nstat1.用时 - pstat1.用时
-        table_lines.append(table_line)
-    for ntask2 in prefer(N.state.短期任务.values(), N.state.选择排序偏好):
-        nstat2 = N.stats.短期任务统计[ntask2.名称]
-        if ntask2.名称 not in P.stats.短期任务统计:
-            pstat2 = EmptyShortTaskStats(ntask2)
-        else:
-            pstat2 = P.stats.短期任务统计[ntask2.名称]
-        # 跳过完成0分项
-        if (
-            ntask2.完成 is not None
-            and P.time >= ntask2.完成
-            and P.time >= ntask2.最晚结束
-        ):
-            continue
-        推荐每日用时 = R.建议用时.get(ntask2.名称, timedelta(0))
-        总推荐每日用时 += 推荐每日用时
-        # [None, "名称", "|", "用时", "完成", "点数", "变化", "建议", "时长", "剩余时间"]"]
-        colorpts = nstat2.点数 - (
-            0 if ntask2.完成 is not None and N.time >= ntask2.完成 else 1
-        )
-        finished = ntask2.完成 is not None and N.time >= ntask2.完成
-        reach_recommend = finished or 推荐每日用时 == timedelta(0)
-        table_line = [
-            colorit(
-                SHORT_RUNNING if not reach_recommend else SHORT_WAITING,
-                colorpts=colorpts,
-            ),
-            colorit(
-                ntask2.标题,
-                grey=reach_recommend,
-                red=not finished and N.time >= ntask2.最晚结束,
-                orange=not finished and end_time >= ntask2.最晚结束,
-            ),
-            colorit(nstat2.用时 - pstat2.用时, greyzero=True, blue=reach_recommend),
-            (
-                colorit("*", blue=True)
-                if ntask2.完成 is not None and N.time >= ntask2.完成
-                else None
-            ),
-            colorit(fmt(nstat2.点数, pos=True), colorpts=colorpts),
-            colorit(
-                fmt(nstat2.点数 - pstat2.点数, pos=True),
-                colorchange=nstat2.点数 - pstat2.点数,
-            ),
-            None,
-            colorit(推荐每日用时, greyzero=True),
-            colorit(ntask2.最晚结束 - N.time, grey=finished),
-        ]
-        总用时 += nstat2.用时 - pstat2.用时
         table_lines.append(table_line)
     table_lines.append(SEPARATING_LINE)
     total_line = [

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import logging
 
 from .picker import isdisabled
-from .statistic import StateStats, EmptyLongTaskStats, EmptyShortTaskStats
+from .statistic import StateStats, EmptyLongTaskStats
 from .workdays import workdays
 from .collect import State
 from .models import WorktimeModel
@@ -62,29 +62,6 @@ def planner(
                 endtime=task1.最晚结束 if tstat1.进度 > 0 else task1.最晚开始,
                 keep=task1.保持安排 == "+",
                 skipped=False,
-            )
-        )
-    for task2 in N.state.短期任务.values():
-        if isdisabled(task2.名称, N.state.选择排序偏好):
-            continue
-        skip_period = False
-        if workdays(end_time, task2.最早开始, worktime) >= 0:
-            log.info(f"task {task2.名称} is skipped")
-            skip_period = True
-        if task2.完成 is not None and P.time >= task2.完成:
-            continue
-        if task2.预计用时 == timedelta(0):
-            continue
-        tstat2 = P.stats.短期任务统计.get(task2.名称, None)
-        if tstat2 is None:
-            tstat2 = EmptyShortTaskStats(task2)
-        collection.append(
-            TaskItem(
-                name=task2.名称,
-                worktime=tstat2.预计需要时间,
-                endtime=task2.最晚结束,
-                keep=False,
-                skipped=skip_period,
             )
         )
     # 按照截止日期排序

@@ -104,43 +104,6 @@ def live_server(workbook: str, host: str, port: int) -> None:
                     )
                 )
 
-            # 短期任务
-            progresses = {}
-            for name in collect_state(data, ctz_now()).短期任务.keys():
-                progresses[name] = []
-            for srecord in data.短期任务:
-                if isinstance(srecord, DeleteModel):
-                    continue
-                if srecord.名称 in progresses:
-                    if srecord.用时 is not None:
-                        用时 = srecord.用时 / timedelta(hours=1)
-                    else:
-                        用时 = 0.0
-                    progresses[srecord.名称].append(
-                        Points(
-                            time=srecord.时间.replace(tzinfo=CTZ).timestamp(), done=用时
-                        )
-                    )
-                    if srecord.完成 is not None:
-                        progresses[srecord.名称].append(
-                            Points(
-                                time=srecord.完成.replace(tzinfo=CTZ).timestamp(),
-                                done=srecord.预计用时 / timedelta(hours=1),
-                            )
-                        )
-            for name, task2 in state.短期任务.items():
-                reports.append(
-                    Report(
-                        name=task2.名称,
-                        mode="short",
-                        tot=task2.预计用时 / timedelta(hours=1),
-                        speed=1,  # 短期任务的完成数量=完成用时小时数
-                        starttime=progresses[name][0]["time"],
-                        endtime=task2.最晚结束.replace(tzinfo=CTZ).timestamp(),
-                        progress=progresses[name],
-                    )
-                )
-
             assert data_timestamp is not None
             numbercache_value = json.dumps(
                 reports, ensure_ascii=False, separators=(",", ":")
