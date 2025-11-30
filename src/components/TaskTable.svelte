@@ -32,6 +32,7 @@
 <table class="stats">
   <thead>
     <tr>
+      <th class="symbol"></th>
       <th>名称</th>
       <th>已完成</th>
       <th>剩余</th>
@@ -48,9 +49,9 @@
       {@const 剩余 = 任务.总数 - 已完成}
       {@const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长)}
       {@const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长)}
-      {@const 主题色 = getThemeColors(任务.颜色 ? 任务.颜色 : 'grey')}
+      {@const 主题色 = getThemeColors(任务.颜色 ? 任务.颜色 : '#ddd')}
       <tr
-        style:--theme-color={任务.颜色 ? 任务.颜色 : 'grey'}
+        style:--theme-color={任务.颜色 ? 任务.颜色 : '#ddd'}
         style:--text-color={主题色.文本颜色}
         style:--background-color={主题色.背景颜色}
         style:--highlight-color={主题色.强调字体颜色}
@@ -75,6 +76,7 @@
     {/each}
     <!-- 总计行 -->
     <tr class="total-row">
+      <td class="symbol"></td>
       <td>总计</td>
       <td>--</td>
       <td>--</td>
@@ -101,7 +103,7 @@
   }
 
   th {
-    background-color: #f2f2f2;
+    background-color: #ddd;
     font-weight: bold;
     color: #333;
   }
@@ -118,7 +120,7 @@
 
   .total-row {
     font-weight: bold;
-    background-color: #dbdbdb;
+    background-color: #ddd;
   }
 
   @font-face {
@@ -133,8 +135,7 @@
   }
 
   .symbol {
-    display: inline-block;
+    background-color: var(--theme-color, #ddd);
     width: 20px;
-    background-color: var(--theme-color);
   }
 </style>
