@@ -122,7 +122,12 @@ export function calculateRemainingTime(速度: number, 剩余: number): string {
 }
 
 // 计算预计完成时间
-export function calculateEstimatedCompletion(当前时间: SvelteDate, 速度: number, 日用时: number, 剩余: number): string {
+export function calculateEstimatedCompletion(
+  当前时间: SvelteDate,
+  速度: number,
+  日用时: number,
+  剩余: number
+): string {
   if (速度 <= 0 || 日用时 <= 0) return '--/-- --:';
   const 剩余时间 = 剩余 / 速度;
   const 预计天数 = 剩余时间 / 日用时;
@@ -160,7 +165,9 @@ export function calculateTotal(
 
   const 平均日用时 = 有效任务数 > 0 ? 总日用时 / 有效任务数 : 0;
   const 预计完成时间 =
-    平均日用时 > 0 ? calculateEstimatedCompletion(当前时间, 1, 平均日用时, 总剩余时间) : '--/-- --:';
+    平均日用时 > 0
+      ? calculateEstimatedCompletion(当前时间, 1, 平均日用时, 总剩余时间)
+      : '--/-- --:';
 
   return {
     总日用时: formatTime(平均日用时 * 3600),

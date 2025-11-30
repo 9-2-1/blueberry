@@ -50,10 +50,12 @@
       {@const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长)}
       {@const 主题色 = getThemeColors(任务.颜色 ? 任务.颜色 : 'grey')}
       <tr
+        style:--theme-color={任务.颜色 ? 任务.颜色 : 'grey'}
         style:--text-color={主题色.文本颜色}
         style:--background-color={主题色.背景颜色}
         style:--highlight-color={主题色.强调字体颜色}
       >
+        <td class="symbol"></td>
         <td>{任务.名称}</td>
         <td>{已完成}</td>
         <td>{剩余}</td>
@@ -105,21 +107,13 @@
   }
 
   tr {
-    color: var(--text-color, inherit);
-    background-color: var(--background-color, transparent);
-  }
-
-  tr:nth-child(even) {
-    background-color: var(--background-color, #f9f9f9);
-  }
-
-  tr:hover {
-    background-color: var(--background-color, #f5f5f5);
+    color: var(--text-color);
+    background-color: var(--background-color);
   }
 
   .highlight {
     font-weight: bold;
-    color: var(--highlight-color, grey);
+    color: var(--highlight-color);
   }
 
   .total-row {
@@ -136,5 +130,11 @@
 
   .stats {
     font-family: 'Fira Mono', 'Courier New', Courier, monospace;
+  }
+
+  .symbol {
+    display: inline-block;
+    width: 20px;
+    background-color: var(--theme-color);
   }
 </style>
