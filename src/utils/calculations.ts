@@ -103,7 +103,7 @@ export function formatTime(seconds: number): string {
   if (seconds <= 0) return '0:00';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  return `${hours.toString().padStart(4, ' ')}:${minutes.toString().padStart(2, '0')}`;
+  return `${hours}:${minutes.toString().padStart(2, '0')}`;
 }
 
 // 格式化日期
@@ -116,7 +116,7 @@ export function formatDate(date: Date): string {
 
 // 计算剩余时间
 export function calculateRemainingTime(速度: number, 剩余: number): string {
-  if (速度 <= 0) return '----:--';
+  if (速度 <= 0) return '--:--';
   const 剩余时间 = 剩余 / 速度;
   return formatTime(剩余时间 * 3600);
 }
