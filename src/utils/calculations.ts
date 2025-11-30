@@ -103,7 +103,7 @@ export function formatTime(seconds: number): string {
   if (seconds <= 0) return '0:00';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
-  return `${hours}:${minutes.toString().padStart(2, '0')}`;
+  return `${hours.toString().padStart(4, ' ')}:${minutes.toString().padStart(2, '0')}`;
 }
 
 // 格式化日期
@@ -145,7 +145,7 @@ export function calculateTotal(
 ) {
   let 总日用时 = 0;
   let 总剩余时间 = 0;
-  let 有效任务数 = 0;
+  let 未决任务数 = 0;
 
   for (const 任务 of 任务列表) {
     const 已完成 = calculateTaskProgress(任务.名称, 进度列表);
@@ -155,23 +155,22 @@ export function calculateTotal(
 
     if (日用时 > 0) {
       总日用时 += 日用时;
-      有效任务数++;
     }
 
     if (速度 > 0) {
       总剩余时间 += 剩余 / 速度;
+    } else {
+      未决任务数++;
     }
   }
 
-  const 平均日用时 = 有效任务数 > 0 ? 总日用时 / 有效任务数 : 0;
   const 预计完成时间 =
-    平均日用时 > 0
-      ? calculateEstimatedCompletion(当前时间, 1, 平均日用时, 总剩余时间)
-      : '--/-- --:';
+    总日用时 > 0 ? calculateEstimatedCompletion(当前时间, 1, 总日用时, 总剩余时间) : '--/-- --:';
 
   return {
-    总日用时: formatTime(平均日用时 * 3600),
+    总日用时: formatTime(总日用时 * 3600),
     总剩余时间: formatTime(总剩余时间 * 3600),
     预计完成时间,
+    未决任务数,
   };
 }
