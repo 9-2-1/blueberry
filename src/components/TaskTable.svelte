@@ -43,12 +43,6 @@
     </tr>
   </thead>
   <tbody>
-    <!--
-      <span>{总计.总日用时}/d</span>
-      <span>{总计.总剩余时间}</span>
-      <span>{总计.预计完成时间}</span>
-      <span>{总计.未决任务数}</span>
-    -->
     {#each 任务列表 as 任务 (任务.名称)}
       <!-- 使用@const简化重复计算 -->
       {@const 已完成 = calculateTaskProgress(任务.名称, 进度列表)}
