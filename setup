@@ -1,2 +1,2 @@
 #!/bin/bash
-pnpm i
+pnpm i --prod

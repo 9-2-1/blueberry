@@ -10,14 +10,13 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "better-sqlite3": "^12.4.6",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "morgan": "^1.10.1"
+    "morgan": "^1.10.1",
+    "read-excel-file": "^6.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/morgan": "^1.9.10",
