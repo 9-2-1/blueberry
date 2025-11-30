@@ -37,7 +37,7 @@
     refreshStatus = 'refreshing';
     error = '';
     try {
-      const response = await fetch('http://localhost:26019/api/get_table');
+      const response = await fetch('./api/get_table');
       const data = (await response.json()) as APIResponse | APIError;
       if ('success' in data && data.success) {
         任务列表 = data.任务;
