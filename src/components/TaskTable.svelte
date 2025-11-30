@@ -29,6 +29,17 @@
   const 总计 = $derived(calculateTotal(当前时间, 任务列表, 进度列表, 速度累积时长, 日用时累积时长));
 </script>
 
+<div class="numbers">
+  <div>
+    {总计.总剩余时间}
+    {#if 总计.未决任务数 > 0}
+      +{总计.未决任务数}
+    {/if}
+  </div>
+  <div>{总计.总日用时}/d</div>
+  <div>{总计.预计完成时间}</div>
+</div>
+
 <table class="stats">
   <thead>
     <tr>
@@ -89,6 +100,20 @@
 </table>
 
 <style>
+  .numbers {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 40px;
+  }
+  .numbers div {
+    font-size: 40px;
+    font-weight: bold;
+    font-family: 'Fira Mono', 'Courier New', Courier, monospace;
+    color: rgb(0, 183, 255);
+  }
+
   table {
     width: 100%;
     border-collapse: collapse;
