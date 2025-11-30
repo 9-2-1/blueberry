@@ -1,0 +1,136 @@
+<script lang="ts">
+  import type { 任务表, 进度表 } from '../types';
+  import {
+    calculateTaskProgress,
+    calculateSpeed,
+    calculateDailyTime,
+    formatTime,
+    calculateRemainingTime,
+    calculateEstimatedCompletion,
+    calculateTotal,
+  } from '../utils/calculations';
+  import { getThemeColors } from '../utils/color';
+
+  // 使用$props()来接收属性
+  const {
+    任务列表 = [],
+    进度列表 = [],
+    速度累积时长 = 72,
+    日用时累积时长 = 3,
+  }: {
+    任务列表: 任务表[];
+    进度列表: 进度表[];
+    速度累积时长: number;
+    日用时累积时长: number;
+  } = $props();
+</script>
+
+<table class="stats">
+  <thead>
+    <tr>
+      <th>名称</th>
+      <th>已完成</th>
+      <th>剩余</th>
+      <th>速度</th>
+      <th>日用时</th>
+      <th>剩余时间</th>
+      <th>预计完成</th>
+    </tr>
+  </thead>
+  <tbody>
+    {#each 任务列表 as 任务 (任务.名称)}
+      <!-- 使用@const简化重复计算 -->
+      {@const 已完成 = calculateTaskProgress(任务.名称, 进度列表)}
+      {@const 剩余 = 任务.总数 - 已完成}
+      {@const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长)}
+      {@const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长)}
+      {@const 主题色 = 任务.颜色 ? getThemeColors(任务.颜色) : null}
+      <tr 
+        style:--text-color={主题色?.文本颜色 || 'inherit'}
+        style:--background-color={主题色?.背景颜色 || 'transparent'}
+        style:--highlight-color={主题色?.强调字体颜色 || 'grey'}
+      >
+        <td>{任务.名称}</td>
+        <td>{已完成}</td>
+        <td>{剩余}</td>
+        <td class:highlight={速度 <= 0}>
+          {速度.toFixed(2)}/h
+        </td>
+        <td class:highlight={日用时 <= 0}>
+          {formatTime(日用时 * 3600)}/d
+        </td>
+        <td>
+          {calculateRemainingTime(速度, 剩余)}
+        </td>
+        <td>
+          {calculateEstimatedCompletion(速度, 日用时, 剩余)}
+        </td>
+      </tr>
+    {/each}
+    <!-- 总计行 -->
+    <tr class="total-row">
+      <td>总计</td>
+      <td>--</td>
+      <td>--</td>
+      <td>--</td>
+      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).总日用时}/d</td>
+      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).总剩余时间}</td>
+      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).预计完成时间}</td>
+    </tr>
+  </tbody>
+</table>
+
+<style>
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+
+  th,
+  td {
+    padding: 3px;
+    text-align: center;
+    border: 1px solid #ddd;
+  }
+
+  th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #333;
+  }
+
+  tr {
+    color: var(--text-color, inherit);
+    background-color: var(--background-color, transparent);
+  }
+
+  tr:nth-child(even) {
+    background-color: var(--background-color, #f9f9f9);
+  }
+
+  tr:hover {
+    background-color: var(--background-color, #f5f5f5);
+  }
+
+  .highlight {
+    font-weight: bold;
+    color: var(--highlight-color, grey);
+  }
+
+  .total-row {
+    font-weight: bold;
+    background-color: #dbdbdb;
+  }
+
+  @font-face {
+    font-family: 'Fira Mono';
+    src: url('/font/FiraMono-Regular.ttf') format('truetype');
+    src: url('/font/FiraMono-Regular.woff') format('woff');
+    src: url('/font/FiraMono-Regular.woff2') format('woff2');
+  }
+
+  .stats {
+    font-family: 'Fira Mono', 'Courier New', Courier, monospace;
+  }
+</style>
