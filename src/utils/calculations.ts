@@ -100,7 +100,7 @@ export function calculateDailyTime(
 
 // 格式化时间
 export function formatTime(seconds: number): string {
-  if (seconds <= 0) return '   0:00';
+  if (seconds <= 0) return '0:00';
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   return `${hours.toString().padStart(4, ' ')}:${minutes.toString().padStart(2, '0')}`;

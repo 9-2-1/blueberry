@@ -106,7 +106,6 @@
     padding: 3px;
     text-align: center;
     border: 1px solid #ddd;
-    white-space: pre;
   }
 
   th {
