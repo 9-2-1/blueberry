@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { 任务表, 进度表, APIResponse, APIError } from './types';
+  import { SvelteDate } from 'svelte/reactivity';
+
   import Settings from './components/Settings.svelte';
   import TaskTable from './components/TaskTable.svelte';
 
@@ -8,6 +10,7 @@
   let 进度列表 = $state<进度表[]>([]);
   let 速度累积时长 = $state(72); // 默认3天（小时）
   let 日用时累积时长 = $state(3); // 默认3天
+  let 当前时间 = $state(new SvelteDate());
   let loading = $state(true);
   let error = $state('');
 
@@ -34,6 +37,7 @@
       if ('success' in data && data.success) {
         任务列表 = data.任务;
         进度列表 = data.进度;
+        当前时间 = new SvelteDate();
       } else {
         error = data.error;
       }
@@ -63,7 +67,7 @@
     <div class="loading">加载中...</div>
   {:else}
     <!-- 任务表格 -->
-    <TaskTable {任务列表} {进度列表} {速度累积时长} {日用时累积时长} />
+    <TaskTable {当前时间} {任务列表} {进度列表} {速度累积时长} {日用时累积时长} />
   {/if}
 </main>
 

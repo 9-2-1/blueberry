@@ -10,19 +10,23 @@
     calculateTotal,
   } from '../utils/calculations';
   import { getThemeColors } from '../utils/color';
+  import { SvelteDate } from 'svelte/reactivity';
 
   // 使用$props()来接收属性
   const {
+    当前时间 = new SvelteDate(),
     任务列表 = [],
     进度列表 = [],
     速度累积时长 = 72,
     日用时累积时长 = 3,
   }: {
+    当前时间: SvelteDate;
     任务列表: 任务表[];
     进度列表: 进度表[];
     速度累积时长: number;
     日用时累积时长: number;
   } = $props();
+  const 总计 = $derived(calculateTotal(当前时间, 任务列表, 进度列表, 速度累积时长, 日用时累积时长));
 </script>
 
 <table class="stats">
@@ -44,11 +48,11 @@
       {@const 剩余 = 任务.总数 - 已完成}
       {@const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长)}
       {@const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长)}
-      {@const 主题色 = 任务.颜色 ? getThemeColors(任务.颜色) : null}
-      <tr 
-        style:--text-color={主题色?.文本颜色 || 'inherit'}
-        style:--background-color={主题色?.背景颜色 || 'transparent'}
-        style:--highlight-color={主题色?.强调字体颜色 || 'grey'}
+      {@const 主题色 = getThemeColors(任务.颜色 ? 任务.颜色 : 'grey')}
+      <tr
+        style:--text-color={主题色.文本颜色}
+        style:--background-color={主题色.背景颜色}
+        style:--highlight-color={主题色.强调字体颜色}
       >
         <td>{任务.名称}</td>
         <td>{已完成}</td>
@@ -63,7 +67,7 @@
           {calculateRemainingTime(速度, 剩余)}
         </td>
         <td>
-          {calculateEstimatedCompletion(速度, 日用时, 剩余)}
+          {calculateEstimatedCompletion(当前时间, 速度, 日用时, 剩余)}
         </td>
       </tr>
     {/each}
@@ -73,9 +77,9 @@
       <td>--</td>
       <td>--</td>
       <td>--</td>
-      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).总日用时}/d</td>
-      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).总剩余时间}</td>
-      <td>{calculateTotal(任务列表, 进度列表, 速度累积时长, 日用时累积时长).预计完成时间}</td>
+      <td>{总计.总日用时}/d</td>
+      <td>{总计.总剩余时间}</td>
+      <td>{总计.预计完成时间}</td>
     </tr>
   </tbody>
 </table>
