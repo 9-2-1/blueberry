@@ -105,6 +105,7 @@
     justify-content: center;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
     gap: 40px;
   }
   .numbers div {
