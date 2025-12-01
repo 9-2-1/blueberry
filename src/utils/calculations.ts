@@ -204,7 +204,11 @@ export function calculateTotal(
 }
 
 export function calculateLastProgressRecord(进度列表: 进度表[]): 进度表 | null {
-  const 最后进度记录 = 进度列表.reverse().find(记录 => 记录.用时 !== undefined);
+  // 进度列表是 Svelte 状态。复制数组以避免修改原始数组
+  const 最后进度记录 = 进度列表
+    .slice()
+    .reverse()
+    .find(记录 => 记录.用时 !== undefined);
   return 最后进度记录 ?? null;
 }
 
