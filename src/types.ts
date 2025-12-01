@@ -5,9 +5,9 @@ export interface 任务统计结果 {
   名称: string;
   已完成: number;
   剩余: number;
-  速度: number | null;
-  日用时: number | null;
-  剩余时间: number | null;
+  速度: number | null; // 单位为每小时
+  日用时: number | null; // 单位为小时
+  剩余时间: number | null; // 单位为秒
   预计完成时间: number | null;
   颜色?: string;
 }
@@ -17,9 +17,9 @@ export interface 按列统计结果 {
   名称: string[];
   已完成: number[];
   剩余: number[];
-  速度: (number | null)[];
-  日用时: (number | null)[];
-  剩余时间: (number | null)[];
+  速度: (number | null)[]; // 单位为每小时
+  日用时: (number | null)[]; // 单位为小时
+  剩余时间: (number | null)[]; // 单位为秒
   预计完成时间: (number | null)[];
   颜色: (string | undefined)[];
 }
