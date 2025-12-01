@@ -1,11 +1,19 @@
 <script lang="ts">
-  import type { 任务表, 进度表, APIResponse, APIError, 按列统计结果, 总计结果 } from './types';
+  import type { 任务表, 进度表, APIResponse, APIError } from './types';
   import { SvelteDate } from 'svelte/reactivity';
   import { onDestroy } from 'svelte';
 
   import Settings from './components/Settings.svelte';
+  import NextTask from './components/NextTask.svelte';
+  import TotalView from './components/TotalView.svelte';
   import TaskTable from './components/TaskTable.svelte';
-  import { calculateColumnStats, calculateTotal } from './utils/calculations';
+  import {
+    calculateStats,
+    calculateColumnStats,
+    calculateTotal,
+    calculateLastProgressRecord,
+    calculateNextTask,
+  } from './utils/calculations';
 
   // 状态管理
   let 任务列表 = $state<任务表[]>([]);
@@ -31,12 +39,22 @@
   }
 
   // 计算统计结果
-  const 列统计结果 = $derived<按列统计结果>(
-    calculateColumnStats(任务列表, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  const 统计结果 = $derived(
+    calculateStats(任务列表, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
   );
 
-  const 总统计结果 = $derived<总计结果>(
+  const 列统计结果 = $derived(calculateColumnStats(统计结果));
+
+  const 总统计结果 = $derived(
     calculateTotal(任务列表, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  );
+
+  const 上一个进度 = $derived(calculateLastProgressRecord(进度列表));
+
+  const 下一个任务 = $derived(calculateNextTask(上一个进度?.名称 ?? '', 任务列表));
+
+  const 下一个任务统计结果 = $derived(
+    下一个任务 !== null ? (统计结果.find(任务 => 任务.名称 === 下一个任务) ?? null) : null
   );
 
   // 获取数据
@@ -107,8 +125,11 @@
   {#if loading}
     <div class="loading">加载中...</div>
   {:else}
-    <!-- 任务表格 -->
-    <TaskTable {列统计结果} 总计结果={总统计结果} />
+    <TotalView {总统计结果} />
+    {#if 下一个任务统计结果 !== null}
+      <NextTask 下一个任务={下一个任务统计结果} />
+    {/if}
+    <TaskTable {列统计结果} {总统计结果} 当前任务={上一个进度?.名称 ?? ''} />
   {/if}
 </main>
 

@@ -139,18 +139,21 @@ export function calculateTaskStats(
   return { 名称: 任务.名称, 已完成, 剩余, 速度, 日用时, 剩余时间, 预计完成时间, 颜色: 任务.颜色 };
 }
 
-// 计算按列分类的统计结果
-export function calculateColumnStats(
+// 计算统计结果
+export function calculateStats(
   任务列表: 任务表[],
   进度列表: 进度表[],
   当前时间: SvelteDate,
   速度累积时长: number,
   日用时累积时长: number
-): 按列统计结果 {
-  const 任务统计结果列表 = 任务列表.map(任务 =>
+): 任务统计结果[] {
+  return 任务列表.map(任务 =>
     calculateTaskStats(任务, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
   );
+}
 
+// 计算按列分类的统计结果
+export function calculateColumnStats(任务统计结果列表: 任务统计结果[]): 按列统计结果 {
   return {
     名称: 任务统计结果列表.map(统计 => 统计.名称),
     已完成: 任务统计结果列表.map(统计 => 统计.已完成),
@@ -198,4 +201,15 @@ export function calculateTotal(
   }
 
   return { 总日用时, 总剩余时间, 预计完成时间, 未决任务数 };
+}
+
+export function calculateLastProgressRecord(进度列表: 进度表[]): 进度表 | null {
+  const 最后进度记录 = 进度列表.find(记录 => 记录.用时 !== undefined);
+  return 最后进度记录 ?? null;
+}
+
+export function calculateNextTask(名称: string, 任务列表: 任务表[]): string | null {
+  const 任务索引 = 任务列表.findIndex(任务 => 任务.名称 === 名称);
+  const 有效索引 = 任务索引 === -1 ? 0 : 任务索引 + 1;
+  return 任务列表[有效索引]?.名称;
 }
