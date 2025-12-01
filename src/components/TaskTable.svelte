@@ -1,43 +1,28 @@
 <script lang="ts">
-  import type { 任务表, 进度表 } from '../types';
+  import type { 按列统计结果, 总计结果 } from '../types';
   import {
-    calculateTaskProgress,
-    calculateSpeed,
-    calculateDailyTime,
     formatTime,
-    calculateRemainingTime,
-    calculateEstimatedCompletion,
-    calculateTotal,
-  } from '../utils/calculations';
+    formatDate,
+    formatSpeed,
+    formatDailyTime,
+    formatProgress,
+  } from '../utils/formatters';
   import { getThemeColors } from '../utils/color';
-  import { SvelteDate } from 'svelte/reactivity';
 
   // 使用$props()来接收属性
-  const {
-    当前时间,
-    任务列表,
-    进度列表,
-    速度累积时长,
-    日用时累积时长,
-  }: {
-    当前时间: SvelteDate;
-    任务列表: 任务表[];
-    进度列表: 进度表[];
-    速度累积时长: number;
-    日用时累积时长: number;
-  } = $props();
-  const 总计 = $derived(calculateTotal(当前时间, 任务列表, 进度列表, 速度累积时长, 日用时累积时长));
+  const { 列统计结果, 总计结果: 总统计结果 }: { 列统计结果: 按列统计结果; 总计结果: 总计结果 } =
+    $props();
 </script>
 
 <div class="numbers">
   <div>
-    {总计.总剩余时间}
-    {#if 总计.未决任务数 > 0}
-      +{总计.未决任务数}
+    {formatTime(总统计结果.总剩余时间)}
+    {#if 总统计结果.未决任务数 > 0}
+      !{总统计结果.未决任务数}
     {/if}
   </div>
-  <div>{总计.总日用时}/d</div>
-  <div>{总计.预计完成时间}</div>
+  <div>{formatDailyTime(总统计结果.总日用时)}</div>
+  <div>{formatDate(总统计结果.预计完成时间)}</div>
 </div>
 
 <table class="stats">
@@ -54,34 +39,37 @@
     </tr>
   </thead>
   <tbody>
-    {#each 任务列表 as 任务 (任务.名称)}
+    {#each 列统计结果.名称 as 名称, 索引 (名称)}
       <!-- 使用@const简化重复计算 -->
-      {@const 已完成 = calculateTaskProgress(任务.名称, 进度列表)}
-      {@const 剩余 = 任务.总数 - 已完成}
-      {@const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长)}
-      {@const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长)}
-      {@const 主题色 = getThemeColors(任务.颜色 ? 任务.颜色 : '#ddd')}
+      {@const 已完成 = 列统计结果.已完成[索引]}
+      {@const 剩余 = 列统计结果.剩余[索引]}
+      {@const 速度 = 列统计结果.速度[索引]}
+      {@const 日用时 = 列统计结果.日用时[索引]}
+      {@const 剩余时间 = 列统计结果.剩余时间[索引]}
+      {@const 预计完成时间 = 列统计结果.预计完成时间[索引]}
+      {@const 颜色 = 列统计结果.颜色[索引]}
+      {@const 主题色 = getThemeColors(颜色 ? 颜色 : '#ddd')}
       <tr
-        style:--theme-color={任务.颜色 ? 任务.颜色 : '#ddd'}
+        style:--theme-color={颜色 ? 颜色 : '#ddd'}
         style:--text-color={主题色.文本颜色}
         style:--background-color={主题色.背景颜色}
         style:--highlight-color={主题色.强调字体颜色}
       >
         <td class="symbol"></td>
-        <td>{任务.名称}</td>
-        <td>{已完成}</td>
-        <td>{剩余}</td>
-        <td class:highlight={速度 <= 0}>
-          {速度.toFixed(2)}/h
+        <td>{名称}</td>
+        <td>{formatProgress(已完成)}</td>
+        <td>{formatProgress(剩余)}</td>
+        <td class:highlight={速度 === null || 速度 <= 0}>
+          {formatSpeed(速度)}
         </td>
-        <td class:highlight={日用时 <= 0}>
-          {formatTime(日用时 * 3600)}/d
-        </td>
-        <td>
-          {calculateRemainingTime(速度, 剩余)}
+        <td class:highlight={日用时 === null || 日用时 <= 0}>
+          {formatDailyTime(日用时)}
         </td>
         <td>
-          {calculateEstimatedCompletion(当前时间, 速度, 日用时, 剩余)}
+          {formatTime(剩余时间)}
+        </td>
+        <td>
+          {formatDate(预计完成时间)}
         </td>
       </tr>
     {/each}
@@ -89,12 +77,12 @@
     <tr class="total-row">
       <td class="symbol"></td>
       <td>总计</td>
-      <td>--</td>
-      <td>--</td>
-      <td>{总计.未决任务数 > 0 ? '!' + 总计.未决任务数 : '--'}</td>
-      <td>{总计.总日用时}/d</td>
-      <td>{总计.总剩余时间}</td>
-      <td>{总计.预计完成时间}</td>
+      <td> -.--</td>
+      <td> -.--</td>
+      <td>{总统计结果.未决任务数 > 0 ? '!' + 总统计结果.未决任务数 : '   -.--/h'}</td>
+      <td>{formatDailyTime(总统计结果.总日用时)}</td>
+      <td>{formatTime(总统计结果.总剩余时间)}</td>
+      <td>{formatDate(总统计结果.预计完成时间)}</td>
     </tr>
   </tbody>
 </table>
@@ -126,6 +114,7 @@
     padding: 3px;
     text-align: center;
     border: 1px solid #ddd;
+    white-space: pre;
   }
 
   th {

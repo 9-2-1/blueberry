@@ -1,4 +1,4 @@
-import type { 任务表, 进度表 } from '../types';
+import type { 任务表, 进度表, 任务统计结果, 按列统计结果, 总计结果 } from '../types';
 import { SvelteDate } from 'svelte/reactivity';
 
 // 计算任务进度
@@ -11,7 +11,11 @@ export function calculateTaskProgress(任务名称: string, 进度列表: 进度
 }
 
 // 计算速度
-export function calculateSpeed(任务名称: string, 进度列表: 进度表[], 速度累积时长: number): number {
+export function calculateSpeed(
+  任务名称: string,
+  进度列表: 进度表[],
+  速度累积时长: number
+): number | null {
   const 任务进度记录 = 进度列表
     .filter(record => record.名称 === 任务名称)
     .sort((a, b) => a.时间 - b.时间);
@@ -64,7 +68,7 @@ export function calculateDailyTime(
   任务名称: string,
   进度列表: 进度表[],
   日用时累积时长: number
-): number {
+): number | null {
   const 任务进度记录 = 进度列表
     .filter(record => record.名称 === 任务名称)
     .sort((a, b) => a.时间 - b.时间);
@@ -98,79 +102,100 @@ export function calculateDailyTime(
   return 总用时 / 日用时累积时长; // 平均日用时，单位为小时
 }
 
-// 格式化时间
-export function formatTime(seconds: number): string {
-  if (seconds <= 0) return '0:00';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return `${hours}:${minutes.toString().padStart(2, '0')}`;
-}
-
-// 格式化日期
-export function formatDate(date: Date): string {
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hours = date.getHours();
-  return `${month}/${day} ${hours}:`;
-}
-
 // 计算剩余时间
-export function calculateRemainingTime(速度: number, 剩余: number): string {
-  if (速度 <= 0) return '--:--';
-  const 剩余时间 = 剩余 / 速度;
-  return formatTime(剩余时间 * 3600);
+export function calculateRemainingTime(速度: number | null, 剩余: number): number | null {
+  if (速度 === null || 速度 <= 0) return null;
+  return (剩余 / 速度) * 3600; // 转换为秒
 }
 
 // 计算预计完成时间
 export function calculateEstimatedCompletion(
   当前时间: SvelteDate,
-  速度: number,
-  日用时: number,
+  速度: number | null,
+  日用时: number | null,
   剩余: number
-): string {
-  if (速度 <= 0 || 日用时 <= 0) return '--/-- --:';
-  const 剩余时间 = 剩余 / 速度;
+): number | null {
+  if (速度 === null || 日用时 === null || 速度 <= 0 || 日用时 <= 0) return null;
+  const 剩余时间 = 剩余 / 速度; // 小时
   const 预计天数 = 剩余时间 / 日用时;
-  const 预计完成日期 = new Date(当前时间.getTime() + 预计天数 * 24 * 60 * 60 * 1000);
-  return formatDate(预计完成日期);
+  return 当前时间.getTime() + 预计天数 * 24 * 60 * 60 * 1000; // 转换为时间戳
+}
+
+// 计算单个任务的统计结果
+export function calculateTaskStats(
+  任务: 任务表,
+  进度列表: 进度表[],
+  当前时间: SvelteDate,
+  速度累积时长: number,
+  日用时累积时长: number
+): 任务统计结果 {
+  const 已完成 = calculateTaskProgress(任务.名称, 进度列表);
+  const 剩余 = 任务.总数 - 已完成;
+  const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长);
+  const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长);
+  const 剩余时间 = calculateRemainingTime(速度, 剩余);
+  const 预计完成时间 = calculateEstimatedCompletion(当前时间, 速度, 日用时, 剩余);
+
+  return { 名称: 任务.名称, 已完成, 剩余, 速度, 日用时, 剩余时间, 预计完成时间, 颜色: 任务.颜色 };
+}
+
+// 计算按列分类的统计结果
+export function calculateColumnStats(
+  任务列表: 任务表[],
+  进度列表: 进度表[],
+  当前时间: SvelteDate,
+  速度累积时长: number,
+  日用时累积时长: number
+): 按列统计结果 {
+  const 任务统计结果列表 = 任务列表.map(任务 =>
+    calculateTaskStats(任务, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  );
+
+  return {
+    名称: 任务统计结果列表.map(统计 => 统计.名称),
+    已完成: 任务统计结果列表.map(统计 => 统计.已完成),
+    剩余: 任务统计结果列表.map(统计 => 统计.剩余),
+    速度: 任务统计结果列表.map(统计 => 统计.速度),
+    日用时: 任务统计结果列表.map(统计 => 统计.日用时),
+    剩余时间: 任务统计结果列表.map(统计 => 统计.剩余时间),
+    预计完成时间: 任务统计结果列表.map(统计 => 统计.预计完成时间),
+    颜色: 任务统计结果列表.map(统计 => 统计.颜色),
+  };
 }
 
 // 计算总计
 export function calculateTotal(
-  当前时间: SvelteDate,
   任务列表: 任务表[],
   进度列表: 进度表[],
+  当前时间: SvelteDate,
   速度累积时长: number,
   日用时累积时长: number
-) {
+): 总计结果 {
+  const 任务统计结果列表 = 任务列表.map(任务 =>
+    calculateTaskStats(任务, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  );
+
   let 总日用时 = 0;
   let 总剩余时间 = 0;
   let 未决任务数 = 0;
 
-  for (const 任务 of 任务列表) {
-    const 已完成 = calculateTaskProgress(任务.名称, 进度列表);
-    const 剩余 = 任务.总数 - 已完成;
-    const 速度 = calculateSpeed(任务.名称, 进度列表, 速度累积时长);
-    const 日用时 = calculateDailyTime(任务.名称, 进度列表, 日用时累积时长);
-
-    if (日用时 > 0) {
-      总日用时 += 日用时;
+  for (const 统计 of 任务统计结果列表) {
+    if (统计.日用时 !== null && 统计.日用时 > 0) {
+      总日用时 += 统计.日用时;
     }
 
-    if (速度 > 0) {
-      总剩余时间 += 剩余 / 速度;
+    if (统计.剩余时间 !== null && 统计.剩余时间 > 0) {
+      总剩余时间 += 统计.剩余时间;
     } else {
       未决任务数++;
     }
   }
 
-  const 预计完成时间 =
-    总日用时 > 0 ? calculateEstimatedCompletion(当前时间, 1, 总日用时, 总剩余时间) : '--/-- --:';
+  let 预计完成时间: number | null = null;
+  if (总日用时 > 0 && 总剩余时间 > 0) {
+    const 预计天数 = 总剩余时间 / 3600 / 总日用时;
+    预计完成时间 = 当前时间.getTime() + 预计天数 * 24 * 60 * 60 * 1000;
+  }
 
-  return {
-    总日用时: formatTime(总日用时 * 3600),
-    总剩余时间: formatTime(总剩余时间 * 3600),
-    预计完成时间,
-    未决任务数,
-  };
+  return { 总日用时, 总剩余时间, 预计完成时间, 未决任务数 };
 }

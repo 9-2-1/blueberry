@@ -1,10 +1,11 @@
 <script lang="ts">
-  import type { 任务表, 进度表, APIResponse, APIError } from './types';
+  import type { 任务表, 进度表, APIResponse, APIError, 按列统计结果, 总计结果 } from './types';
   import { SvelteDate } from 'svelte/reactivity';
   import { onDestroy } from 'svelte';
 
   import Settings from './components/Settings.svelte';
   import TaskTable from './components/TaskTable.svelte';
+  import { calculateColumnStats, calculateTotal } from './utils/calculations';
 
   // 状态管理
   let 任务列表 = $state<任务表[]>([]);
@@ -28,6 +29,15 @@
   if (日用时累积时长Param) {
     日用时累积时长 = Number(日用时累积时长Param);
   }
+
+  // 计算统计结果
+  const 列统计结果 = $derived<按列统计结果>(
+    calculateColumnStats(任务列表, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  );
+
+  const 总统计结果 = $derived<总计结果>(
+    calculateTotal(任务列表, 进度列表, 当前时间, 速度累积时长, 日用时累积时长)
+  );
 
   // 获取数据
   async function fetchData() {
@@ -98,7 +108,7 @@
     <div class="loading">加载中...</div>
   {:else}
     <!-- 任务表格 -->
-    <TaskTable {当前时间} {任务列表} {进度列表} {速度累积时长} {日用时累积时长} />
+    <TaskTable {列统计结果} 总计结果={总统计结果} />
   {/if}
 </main>
 
