@@ -77,8 +77,8 @@
     <tr class="total-row">
       <td class="symbol"></td>
       <td>总计</td>
-      <td> -.--</td>
-      <td> -.--</td>
+      <td>&nbsp;&nbsp;&nbsp;-.--</td>
+      <td>&nbsp;&nbsp;&nbsp;-.--</td>
       <td>{总统计结果.未决任务数 > 0 ? '!' + 总统计结果.未决任务数 : '   -.--/h'}</td>
       <td>{formatDailyTime(总统计结果.总日用时)}</td>
       <td>{formatTime(总统计结果.总剩余时间)}</td>
