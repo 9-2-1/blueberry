@@ -105,7 +105,7 @@
   <!-- 刷新状态指示器 -->
   <div class="refresh-indicator">
     {#if refreshStatus === 'refreshing'}
-      <div class="refresh-animation"></div>
+      <div class="refresh-animation">⟳</div>
     {:else if refreshStatus === 'error'}
       <div class="refresh-error">X</div>
     {:else if refreshStatus === 'success'}
@@ -170,9 +170,7 @@
   .refresh-animation {
     width: 20px;
     height: 20px;
-    border: 2px solid #4a90e2;
-    border-top: 2px solid transparent;
-    border-radius: 50%;
+    color: #4a90e2;
     animation: spin 1s linear infinite;
   }
 
