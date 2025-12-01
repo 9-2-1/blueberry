@@ -9,7 +9,7 @@
   // 状态管理
   let 任务列表 = $state<任务表[]>([]);
   let 进度列表 = $state<进度表[]>([]);
-  let 速度累积时长 = $state(72); // 默认3天（小时）
+  let 速度累积时长 = $state(4); // 默认4小时
   let 日用时累积时长 = $state(3); // 默认3天
   let 当前时间 = new SvelteDate();
   let loading = $state(true);

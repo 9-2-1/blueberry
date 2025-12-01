@@ -1,8 +1,8 @@
 <script lang="ts">
   // 使用$props()和$bindable()来实现双向绑定
   let {
-    速度累积时长 = $bindable(72),
-    日用时累积时长 = $bindable(3),
+    速度累积时长 = $bindable(),
+    日用时累积时长 = $bindable(),
   }: { 速度累积时长: number; 日用时累积时长: number } = $props();
 
   // 更新URL参数
