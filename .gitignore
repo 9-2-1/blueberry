@@ -24,7 +24,9 @@ dist-ssr
 *.sw?
 
 .*.un~
-*.db
-*.db-*
 
 APPID.txt
+
+*.xlsx
+.st*
+blueberry.dat
