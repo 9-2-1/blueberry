@@ -204,7 +204,7 @@ export function calculateTotal(
 }
 
 export function calculateLastProgressRecord(进度列表: 进度表[]): 进度表 | null {
-  const 最后进度记录 = 进度列表.find(记录 => 记录.用时 !== undefined);
+  const 最后进度记录 = 进度列表.reverse().find(记录 => 记录.用时 !== undefined);
   return 最后进度记录 ?? null;
 }
 
