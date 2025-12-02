@@ -6,8 +6,8 @@
   // 使用$props()来接收属性
   const { 下一个任务 }: { 下一个任务: 任务统计结果 } = $props();
 
-  const [, c, h] = chroma(下一个任务.颜色 ?? '#ddd').oklch();
-  const accentColor = chroma.oklch(0.5, c, h).css();
+  const [, c, h] = $derived(chroma(下一个任务.颜色 ?? '#ddd').oklch());
+  const accentColor = $derived(chroma.oklch(0.5, c, h).css());
 </script>
 
 <div class="numbers" style:--accent-color={accentColor}>
