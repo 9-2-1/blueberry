@@ -1,5 +1,3 @@
 call pnpm i
-cd server
-call pnpm run build
-cd ..
+call pnpm run build-server
 call pnpm run build
